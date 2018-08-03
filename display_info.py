@@ -3,6 +3,7 @@ import numpy as np
 from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
+import xml.etree.ElementTree as ET
 
 """
 Planet class to make things easier to handle.
@@ -10,7 +11,7 @@ Planet class to make things easier to handle.
 """
 class Planet(object):
     name = ""
-    distanceFromSun = 0 #in lightyears
+    distanceFromEarth = 0 #in lightyears
     size = 0 # multiplier only. x times of earth's
     gravity = 0 # multiplier only. x times of earth's
     moons = [] # only the names
@@ -18,9 +19,9 @@ class Planet(object):
     orbitTime = 0 # in days (earth)
     dayTime = 0 # in days (earth)
 
-    def __init__(self, name, distanceFromSun, size, gravity, moons, elementsFound, orbitTime, dayTime):
+    def __init__(self, name, distanceFromEarth, size, gravity, moons, elementsFound, orbitTime, dayTime):
         self.name = name
-        self.distanceFromSun = distanceFromSun
+        self.distanceFromSun = distanceFromEarth
         self.size = size
         self.gravity = gravity
         self.moons = moons
@@ -64,35 +65,31 @@ def click_and_display(event, x, y, flags, param):
         cv2.imshow("image", img)
 
 def prepare_info():
-    # Create a planet
-    planet = Planet("Mercury", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+
+    # Create the solar system
+    celestialBodies = list()
+
+    # Get the data from the XML
+    solarSystem = ET.parse('planet_info.xml')
+    celestialBodies = solarSystem.getroot()
+    for bodies in celestialBodies:
+        print(bodies.tag, bodies.attrib)
+
+    for stars in bodies:
+        print(stars.tag, stars.attrib)
+
+    #for i in range(10):
+    #    planet = Planet("Mercury", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    #    celestialBodies.append(planet)
+
+
+
 
     #TODO: How to do know which planet is clicked? We need to find a solution here below.
-    """if(mercury):
-        planet = Planet("Mercury", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif(venus):
-        planet = Planet("Venus", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif(earth):
-        planet = Planet("Earth", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif(mars):
-        planet = Planet("Mars", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif(jupiter):
-        planet = Planet("Jupiter", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif(saturn):
-        planet = Planet("Saturn", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif(uranus):
-        planet = Planet("Uranus", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif (neptune):
-        planet = Planet("Neptune", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    elif (pluto):
-        planet = Planet("Pluto", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    else:
-        planet = Planet("Sun", 0, 0.5, 0.1, ['None'], ['Hydrogen, Helium'], 8, 0.15)
-    """
 
     info = "-Planet Info" \
            "\n--Name: " + planet.name +\
-           "\n--Distance from the Sun: " + str(planet.distanceFromSun) + " lightyears" +\
+           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " lightyears" +\
            "\n--Size: x" + str(planet.size) + " of Earth" +\
            "\n--Gravity: x" +str(planet.gravity) + " of Earth" +\
            "\n--Moons: " + str(planet.moons) +\
