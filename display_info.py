@@ -1,63 +1,93 @@
 import cv2
+import numpy as np
+from PIL import ImageFont
+from PIL import Image
+from PIL import ImageDraw
 
-refPt = []
+"""
+Planet class to make things easier to handle.
 
-def click_and_crop(event, x, y, flags, param):
+"""
+class Planet(object):
+    name = ""
+    distanceFromSun = 0 #in lightyears
+    size = 0 # multiplier only. x times of earth's
+    gravity = 0 # multiplier only. x times of earth's
+    moons = [] # only the names
+    elementsFound = []
+    orbitTime = 0 # in days (earth)
+    dayTime = 0 # in days (earth)
+
+    def __init__(self, name, distanceFromSun, size, gravity, moons, elementsFound, orbitTime, dayTime):
+        self.name = name
+        self.distanceFromSun = distanceFromSun
+        self.size = size
+        self.gravity = gravity
+        self.moons = moons
+        self.elementsFound = elementsFound
+        self.orbitTime = orbitTime
+        self.dayTime = dayTime
+
+def click_and_display(event, x, y, flags, param):
     # grab references to the global variables
-	global coordinates
+    global img
 
     # if the left mouse button was clicked, record the starting
-	if event == cv2.EVENT_LBUTTONDBLCLK:
-        coordinates = [(x, y)]
+    if event == cv2.EVENT_LBUTTONUP:
+        print(x,y)
 
-    # draw a circle
-    cv2.circle(img, (x, y), 100, (255, 0, 0), -1)
-    cv2.imshow("image", img)
+        # display info
+        info = prepare_info()
 
-def display_info(coordinate_x, coordinate_y):
+        # get the font
+        fontsize = 10
+        font = ImageFont.truetype("space.ttf", fontsize)
 
-    # properties of the text to be used on the display window
-    font                   = cv2.FONT_HERSHEY_SIMPLEX
-    bottomLeftCornerOfText = (coordinate_x + 10, coordinate_y + 10) # next to the object
-    fontScale              = 1
-    fontColor              = (255,255,255)
-    lineType               = 1
+        # load the image to PIL format
+        img_pil = Image.fromarray(img)
 
-    cv2.putText(img, 'Planet Info: Tralala!',
-                bottomLeftCornerOfText,
-                font,
-                fontScale,
-                fontColor,
-                lineType)
-    return img
+        # draw the font
+        draw = ImageDraw.Draw(img_pil)
+        clickingOffset = 50 # how far should the information be displayed (in pixels)
+        draw.text((x + clickingOffset, y), info, font=font, fill=(0,255,0,0))
 
+        # back to opencv format
+        img = np.array(img_pil)
 
-img = cv2.imread('solar_system.jpg',1)
-clone = img.copy()
-cv2.namedWindow("image")
-cv2.setMouseCallback("image", click_and_crop)
-cv2.imshow('image',display_info(10,50))
+        # display it
+        cv2.imshow("image", img)
 
-# keep looping until the 'q' key is pressed
-while True:
-	# display the image and wait for a keypress
-	cv2.imshow("image", img)
-	key = cv2.waitKey(1) & 0xFF
+def prepare_info():
+    # Create a planet
+    planet = Planet("Mercury", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    info = "Planet Info" \
+           "\nName: " + planet.name +\
+           "\nDistance from the Sun: " + str(planet.distanceFromSun) + " lightyears" +\
+           "\nSize: x" + str(planet.size) + " of Earth" +\
+           "\nGravity: x" +str(planet.gravity) + " of Earth" +\
+           "\nMoons: " + str(planet.moons) +\
+           "\nElements Found: " + str(planet.elementsFound) +\
+           "\nOrbit Time: " + str(planet.orbitTime) + " Earth days" +\
+           "\nDay Time: " + str(planet.dayTime) + " Earth days"
 
-	# if the 'r' key is pressed, reset the cropping region
-	if key == ord("r"):
-		img = clone.copy()
+    # print(info)
+    return info
 
-	# if the 'c' key is pressed, break from the loop
-	elif key == ord("c"):
-		break
+if __name__ == "__main__":
+    img = cv2.imread('solar_system.jpg',1)
+    clone = img.copy()
+    cv2.namedWindow("image")
+    cv2.setMouseCallback("image", click_and_display)
 
-# if there are two reference points, then crop the region of interest
-# from teh image and display it
-if len(refPt) == 2:
-	roi = clone[refPt[0][1]:refPt[1][1], refPt[0][0]:refPt[1][0]]
-	cv2.imshow("ROI", roi)
-	cv2.waitKey(0)
+    # keep looping until the 'q' key is pressed
+    while True:
+        # display the image and wait for a keypress
+        cv2.imshow("image", img)
+        key = cv2.waitKey(1) & 0xFF
 
-# close all open windows
-cv2.destroyAllWindows()
+        # if the 'c' key is pressed, break from the loop
+        if key == ord("c"):
+            break
+
+    # close all open windows
+    cv2.destroyAllWindows()
