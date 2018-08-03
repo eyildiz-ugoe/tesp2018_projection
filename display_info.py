@@ -34,14 +34,16 @@ def click_and_display(event, x, y, flags, param):
 
     # if the left mouse button was clicked, record the starting
     if event == cv2.EVENT_LBUTTONUP:
-        print(x,y)
+        # print(x,y)
+        # draw a circle on where we clicked
+        cv2.circle(img, (x,y), 3, (0,0,255), thickness=-1, lineType=8) # color BGR
 
         # display info
         info = prepare_info()
 
         # get the font
         fontsize = 10
-        font = ImageFont.truetype("space.ttf", fontsize)
+        font = ImageFont.truetype("spacefont.ttf", fontsize)
 
         # load the image to PIL format
         img_pil = Image.fromarray(img)
@@ -49,10 +51,14 @@ def click_and_display(event, x, y, flags, param):
         # draw the font
         draw = ImageDraw.Draw(img_pil)
         clickingOffset = 50 # how far should the information be displayed (in pixels)
-        draw.text((x + clickingOffset, y), info, font=font, fill=(0,255,0,0))
+        draw.text((x + clickingOffset, y), info, font=font, fill=(0,0,255,0)) # color BGR
 
         # back to opencv format
         img = np.array(img_pil)
+
+        # add a line to the info
+        textOffset = 90 # enough long to cover the text body on X axis
+        cv2.line(img, (x, y), (x+clickingOffset + textOffset, y), (0, 0, 255), 1)
 
         # display it
         cv2.imshow("image", img)
@@ -60,15 +66,39 @@ def click_and_display(event, x, y, flags, param):
 def prepare_info():
     # Create a planet
     planet = Planet("Mercury", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
-    info = "Planet Info" \
-           "\nName: " + planet.name +\
-           "\nDistance from the Sun: " + str(planet.distanceFromSun) + " lightyears" +\
-           "\nSize: x" + str(planet.size) + " of Earth" +\
-           "\nGravity: x" +str(planet.gravity) + " of Earth" +\
-           "\nMoons: " + str(planet.moons) +\
-           "\nElements Found: " + str(planet.elementsFound) +\
-           "\nOrbit Time: " + str(planet.orbitTime) + " Earth days" +\
-           "\nDay Time: " + str(planet.dayTime) + " Earth days"
+
+    #TODO: How to do know which planet is clicked? We need to find a solution here below.
+    """if(mercury):
+        planet = Planet("Mercury", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif(venus):
+        planet = Planet("Venus", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif(earth):
+        planet = Planet("Earth", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif(mars):
+        planet = Planet("Mars", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif(jupiter):
+        planet = Planet("Jupiter", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif(saturn):
+        planet = Planet("Saturn", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif(uranus):
+        planet = Planet("Uranus", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif (neptune):
+        planet = Planet("Neptune", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    elif (pluto):
+        planet = Planet("Pluto", 1000000, 0.5, 0.1, ['Moon A', 'Moon B'], ['Hydrogen, Nitrogen'], 8, 0.15)
+    else:
+        planet = Planet("Sun", 0, 0.5, 0.1, ['None'], ['Hydrogen, Helium'], 8, 0.15)
+    """
+
+    info = "-Planet Info" \
+           "\n--Name: " + planet.name +\
+           "\n--Distance from the Sun: " + str(planet.distanceFromSun) + " lightyears" +\
+           "\n--Size: x" + str(planet.size) + " of Earth" +\
+           "\n--Gravity: x" +str(planet.gravity) + " of Earth" +\
+           "\n--Moons: " + str(planet.moons) +\
+           "\n--Elements Found: " + str(planet.elementsFound) +\
+           "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" +\
+           "\n--Day Time: " + str(planet.dayTime) + " Earth days"
 
     # print(info)
     return info
