@@ -36,6 +36,9 @@ def click_and_display(event, x, y, flags, param):
     # grab references to the global variables
     global img
 
+    #TODO: We need to get a new image frame every time the user clicks,
+    #TODO: otherwise we keep writing on the same image
+
     # if the left mouse button was clicked, record the starting
     if event == cv2.EVENT_LBUTTONUP:
         # print(x,y)
