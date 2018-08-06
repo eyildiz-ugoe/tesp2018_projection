@@ -5,7 +5,9 @@ MIN_MATCH_COUNT = 10
 #just using this variable for testing purposes
 projFrame = 'solar_system.jpg'
 
-
+#Function which takes the camera image and the projector frame and finds the keypoints in these images
+#It then finds the matches
+#Returns matches, and keypoints for both images
 def get_feature_match(camFrame, projFrame):
     #Get the images and convert them to gray scale
     #img1 = cv2.imread(camFrame)
@@ -52,7 +54,7 @@ def get_feature_match(camFrame, projFrame):
 
     #return good, kp1, kp2
 
-
+#Function to find the homography matrix which transforms from the camera image to the projector image
 def get_homography(matches, kp1, kp2):
     #Apply ratio test to get good matches
     good = []
@@ -71,8 +73,9 @@ def get_homography(matches, kp1, kp2):
 
         return matrix
     else:
-        #if a homography matrix could not be found return 0
-        return 0
+        #if a homography matrix could not be found return 0. I am finding it hard to test for this.
+        #Need something we can test for later in cases where there weren;t enough matches
+        return np.array(np.array[0, 0])
 
 #returns the location of the centre of the camera image in the projector image
 def virtual_point(camFrame, hgmatrix):
@@ -81,11 +84,17 @@ def virtual_point(camFrame, hgmatrix):
     h,w,d = camFrame.shape
 
     #The centre point in the camera image
-    pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
+    #pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
+    pts = np.array([[w/2, h/2]], dtype='float32')
+    pts = np.array([pts])
     # find the location of this same point in the projector image
     dst = cv2.perspectiveTransform(pts, hgmatrix)
 
     return dst
+
+
+
+###################Main piece of code
 
 #initialise the webcam
 cap = cv2.VideoCapture(1)
@@ -101,11 +110,13 @@ while (True): #if this is an infinite loop do all other functions have to be cal
 
     display = cv2.imread(projFrame)
 
-    if hgmatrix!=0:
-        #get the location of the centre of the camera image in the projector image
-        dspPoint = virtual_point(frame, hgmatrix)
-        # draw a circle on where we clicked
-        cv2.circle(display, dspPoint[0], 3, (0, 0, 255), thickness=-1, lineType=8)  # color BGR
+    #if hgmatrix:
+    print(hgmatrix.shape)
+    #get the location of the centre of the camera image in the projector image
+    dspPoint = virtual_point(frame, hgmatrix)
+    print(dspPoint)
+    # draw a circle on where we clicked
+    cv2.circle(display, dspPoint[0], 3, (0, 0, 255), thickness=-1, lineType=8)  # color BGR
 
 
 
