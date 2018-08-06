@@ -1,0 +1,106 @@
+<celestialBodies>
+<stars>
+	<star>
+		<item name="Name">Sun</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+	</star>
+</stars>
+<planets>  
+    <planet>
+        <item name="Name">Mercury</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Venus</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Earth</item>
+        <item name="Distance from the Earth">0</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Mars</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Jupiter</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Saturn</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Uranus</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Neptune</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+    <planet>
+        <item name="Name">Pluto</item>
+        <item name="Distance from the Earth">100000</item>
+		<item name="Size">9</item>
+        <item name="Moons">A,B,C</item>
+		<item name="Gravity">0.4</item>
+        <item name="Elements Found">H, HE, C</item>
+		<item name="Orbiting Time">15</item>
+        <item name="Day Time">12</item>
+    </planet>
+</planets>  
+</celestialBodies>
