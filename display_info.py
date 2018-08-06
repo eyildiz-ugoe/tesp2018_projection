@@ -4,9 +4,14 @@ from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
 import xml.etree.ElementTree as ET
+from pygame import mixer # Load the required library
+
 
 # global variable to hold everything
 planets = stars = planet_list = []
+
+# for the sound stuff
+mixer.init()
 
 """
 Planet class to make things easier to handle.
@@ -57,6 +62,10 @@ def click_and_display(event, x, y, flags, param):
         for i in range(len(planet_list)):
             print(planet_list[i].name)
 
+        # play the info sound
+        #mixer.music.load('info.mp4')
+        #mixer.music.play()
+
         # for the time being we only print the info of the sun, which is the 0th element
         # once we figure out which celestial body is selected, we need to pass that specific planet with:
         # info = prepare_info(planet)
@@ -99,6 +108,11 @@ def prepare_info(planet):
     return info
 
 if __name__ == "__main__":
+
+    # play the background sound
+    #mixer.music.load('background.mp4')
+    #mixer.music.play()
+
     img = cv2.imread('solar_system.jpg',1)
     clone = img.copy()
     cv2.namedWindow("image")
