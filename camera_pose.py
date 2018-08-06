@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 
-MIN_MATCH_COUNT = 10
+MIN_MATCH_COUNT = 6
 #just using this variable for testing purposes
 projFrame = 'solar_system.jpg'
 
@@ -24,23 +24,32 @@ def get_feature_match(camFrame, projFrame):
     #initialise orb which is similar to sift but free
     orb = cv2.ORB_create()
     #find the keypoints and descriptors using orb
-    camera_kp, des1 = orb.detectAndCompute(camera_gray, None)
-    proj_kp, des2 = orb.detectAndCompute(proj_gray, None)
+    camera_kp, camera_des = orb.detectAndCompute(camera_gray, None)
+    proj_kp, proj_des = orb.detectAndCompute(proj_gray, None)
 
     #Brute-Force matcher
-    #BFMatcher with default params
-    bf = cv2.BFMatcher()
-    matches = bf.knnMatch(des1, des2, k=2)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-    #Test for the matcher
-    """good = []
+    #match descriptor
+    matches = bf.match(camera_des, proj_des)
+
+    #sort them in the order of their distance
+    matches = sorted(matches, key=lambda x:x.distance)
+
+    #Test for the knnmatcher
+    '''good = []
     for m, n in matches:
         if m.distance < 0.75 * n.distance:
             good.append([m])
     # cv2.drawMatchesKnn expects list of lists as matches.
 
-    img3 = cv2.drawMatchesKnn(img1, kp1, img2, kp2, good, None,  flags=2)
-    plt.imshow(img3), plt.show()"""
+    img3 = cv2.drawMatchesKnn(img1, camera_kp, img2, proj_kp, matches, None,  flags=2)
+    plt.imshow(img3), plt.show()'''
+
+    #test for matcher
+    # Draw first 10 matches.
+    '''img3 = cv2.drawMatches(img1, camera_kp, img2, proj_kp, matches[:10], None, flags=2)
+    plt.imshow(img3), plt.show()'''
 
     return matches, camera_kp, proj_kp
 
@@ -67,24 +76,28 @@ def get_feature_match(camFrame, projFrame):
 #Function to find the homography matrix which transforms from the camera image to the projector image
 def get_homography(matches, camera_kp, proj_kp):
     homography_matrix = []
-    #Apply ratio test to get good matches
-    good = []
+    #Apply ratio test to get good matches - redundant code as using new matching method
+    '''good = []
     for m,n in matches:
         if m.distance < 0.75*n.distance:
-            good.append(m)
+            good.append(m)'''
 
+    good = matches[:10]
     #check that there is enough matches
-    if len(matches)>MIN_MATCH_COUNT:
+    if len(good)>MIN_MATCH_COUNT:
+
         #Not really sure what this is doing, what are queryIdx and trainIdx
-        src_pts = np.float32([proj_kp[m.queryIdx].pt for m in good]).reshape(-1,1,2)
-        dst_pts = np.float32([camera_kp[m.trainIdx].pt for m in good]).reshape(-1,1,2)
+        src_pts = np.float32([ proj_kp[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
+        dst_pts = np.float32([ camera_kp[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+
+
 
         #get the homography matrix
         homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
         return homography_matrix
     else:
-        print("Not enough matches are found - %d/%d" % (len(matches), MIN_MATCH_COUNT))
+        print("Not enough matches are found - %d/%d" % (len(good), MIN_MATCH_COUNT))
         mask = None
         #if a homography matrix could not be found return 0. I am finding it hard to test for this.
         #Need something we can test for later in cases where there weren;t enough matches
@@ -123,6 +136,8 @@ while ret == False:
     hgmatrix = get_homography(matches, kp1, kp2)
     print(hgmatrix)
 
+    display = cv2.imread(projFrame)
+    
 
 
 """while (True): #if this is an infinite loop do all other functions have to be called from here.
