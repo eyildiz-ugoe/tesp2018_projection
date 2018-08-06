@@ -66,7 +66,7 @@ def get_feature_match(camFrame, projFrame):
 
 #Function to find the homography matrix which transforms from the camera image to the projector image
 def get_homography(matches, camera_kp, proj_kp):
-    homography_matrix = np.array[]
+    homography_matrix = []
     #Apply ratio test to get good matches
     good = []
     for m,n in matches:
@@ -84,13 +84,14 @@ def get_homography(matches, camera_kp, proj_kp):
 
         return homography_matrix
     else:
-        print()
+        print("Not enough matches are found - %d/%d" % (len(matches), MIN_MATCH_COUNT))
+        mask = None
         #if a homography matrix could not be found return 0. I am finding it hard to test for this.
         #Need something we can test for later in cases where there weren;t enough matches
         #INitialise the matrix with zeros at the start of this function and just return the empty matrix if it goes into
         #the else case
         #Should also set mask = None or something so there are no errors  in the future
-        return np.array(np.array[0, 0])
+        return homography_matrix
 
 #returns the location of the centre of the camera image in the projector image
 def virtual_point(camFrame, hgmatrix):
