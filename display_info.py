@@ -24,17 +24,17 @@ class Planet(object):
     size = 0 # multiplier only. x times of earth's
     gravity = 0 # multiplier only. x times of earth's
     moons = [] # only the names
-    elementsFound = []
+    compoundFound = []
     orbitTime = 0 # in days (earth)
     dayTime = 0 # in days (earth)
 
-    def __init__(self, name, distanceFromEarth, size, moons, gravity, elementsFound, orbitTime, dayTime):
+    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime):
         self.name = name
         self.distanceFromSun = distanceFromEarth
         self.size = size
         self.gravity = gravity
         self.moons = moons
-        self.elementsFound = elementsFound
+        self.compoundFound = compoundFound
         self.orbitTime = orbitTime
         self.dayTime = dayTime
 
@@ -100,7 +100,7 @@ def prepare_info(planet):
            "\n--Size: " + str(planet.size) + " x of Earth" + \
            "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
            "\n--Moons: " + str(planet.moons) + \
-           "\n--Elements Found: " + str(planet.elementsFound) + \
+           "\n--Compounds Found: " + str(planet.compoundFound) + \
            "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" + \
            "\n--Day Time: " + str(planet.dayTime) + " Earth days"
 
