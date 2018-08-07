@@ -8,6 +8,13 @@ MIN_MATCH_COUNT = 6
 MAX_MATCH_COUNT = 20
 CAM_WIDTH = 1280
 CAM_HEIGHT = 960
+EXP_SMOOTHING_FACTOR = 0.2
+MATRIX_EXP_SMOOTHING_FACTOR = 0.2
+delta_t = 1
+tracked_centre_point = [0,0]
+tracked_velocity = [0,0]
+smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+
 
 # Just using this variable for testing purposes
 imageToBeProjected = 'solar_system.jpg'
@@ -99,6 +106,34 @@ def virtual_point(homographyMatrix):
     return dst
 
 
+def smoothenMatrix(homographyMatrix):
+    for j in range(3):
+        for i in range(3):
+            smoothenedMatrix[i][j] = smoothenedMatrix[i][j] * (MATRIX_EXP_SMOOTHING_FACTOR) + homographyMatrix[i][j] * (1 - MATRIX_EXP_SMOOTHING_FACTOR)
+
+
+def preventScattering(homographyMatrix, background_height, background_width):
+    pts = np.float32([ [0,0],[0,background_height-1],[background_width-1,background_height-1],[background_width-1,0] ]).reshape(-1,1,2)
+    dst = cv2.perspectiveTransform(pts,homographyMatrix)
+    area = cv2.contourArea(dst)
+    if area > 100000:
+        x,y,w,h = cv2.boundingRect(dst)
+        metric = w*h
+        error_ratio = abs(metric - area) / area
+        if error_ratio < 0.8:
+            return True
+    else:
+        return False
+
+
+def smoothenCenterMotion(measured_position, delta_t):
+    new_point = [0,0]
+    for i in range(2):
+        new_point[i] = int(round((tracked_centre_point[i] + tracked_velocity[i]*delta_t)*MATRIX_EXP_SMOOTHING_FACTOR + measured_position[i]*(1-MATRIX_EXP_SMOOTHING_FACTOR)))
+        tracked_velocity[i] = new_point[i] - tracked_centre_point[i]
+        tracked_centre_point[i] = new_point[i]
+
+
 if __name__ == '__main__':
 
     # Set up the camera
@@ -154,8 +189,17 @@ if __name__ == '__main__':
         show_matches(processedImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix)
 
         # Draw a virtual point on the image
-        dspPoint = virtual_point(homographyMatrix)
-        cv2.circle(processedImage, tuple(dspPoint[0][0]), 10, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+        # If it is square, update our position to the new found position, else keep the old one
+        if preventScattering(homographyMatrix, background_width, background_height):
+            smoothenMatrix(homographyMatrix)
+            dst = virtual_point(smoothenedMatrix)
+            new_point = dst[0][0]
+        else:
+            new_point = [p for p in tracked_centre_point]
+            print("Failed to prevent scattering")
+
+        smoothenCenterMotion(new_point, delta_t)
+        cv2.circle(processedImage, tuple(new_point), 10, (0, 0, 255), thickness=1, lineType=8)  # color BGR
 
         # Display the resulting projector image with a dot for the camera location
         cv2.imshow('Projector', processedImage)
