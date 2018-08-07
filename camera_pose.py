@@ -155,8 +155,7 @@ if __name__ == '__main__':
 
         # Draw a virtual point on the image
         dspPoint = virtual_point(homographyMatrix)
-        new_point = dspPoint[0][0]
-        cv2.circle(projectionImage, tuple(new_point), 20, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+        cv2.circle(processedImage, tuple(dspPoint[0][0]), 10, (0, 0, 255), thickness=1, lineType=8)  # color BGR
 
         # Display the resulting projector image with a dot for the camera location
         cv2.imshow('Projector', processedImage)
