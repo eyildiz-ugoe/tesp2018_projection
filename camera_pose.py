@@ -48,8 +48,8 @@ def get_feature_match(camFrame, projFrame):
 
     #test for matcher
     # Draw first 10 matches.
-    '''img3 = cv2.drawMatches(img1, camera_kp, img2, proj_kp, matches[:10], None, flags=2)
-    plt.imshow(img3), plt.show()'''
+    img3 = cv2.drawMatches(img1, camera_kp, img2, proj_kp, matches[:10], None, flags=2)
+    plt.imshow(img3), plt.show()
 
     return matches, camera_kp, proj_kp
 
@@ -120,15 +120,18 @@ def virtual_point(camFrame, hgmatrix):
     #The centre point in the camera image
     #pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
     pts = np.float32([ [round(w/2),round(h/2)] ]).reshape(-1,1,2)
-    pts = np.array([pts])
-
+    #pts = np.array([pts])
+    print(pts)
     #line copied from prev year
     m = cv2.invert(hgmatrix)
 
     # find the location of this same point in the projector image
     dst = cv2.perspectiveTransform(pts, m[1])
+
     #adjust dst so that it is a tuple
     dst = tuple(dst.reshape(1, -1)[0])
+
+    dst = (round(dst[0]), round(dst[1]))
     return dst
 
 
@@ -141,27 +144,34 @@ def virtual_point(camFrame, hgmatrix):
 
 #initialise the webcam
 cap = cv2.VideoCapture(1)
-ret = False
-while ret == False:
+display = cv2.imread(projFrame)
+cv2.namedWindow('projector', cv2.WND_PROP_FULLSCREEN)
+cv2.setWindowProperty('projector',cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+cv2.imshow('projector', display)
+while (True):
+    cv2.imshow('projector', display)
     ret, frame = cap.read()
     matches, camera_kp, proj_kp = get_feature_match(frame, projFrame)
 
     hgmatrix = get_homography(matches, camera_kp, proj_kp)
     print(hgmatrix)
+    if len(hgmatrix)==0:
+        print("No homography matrix calculated")
+        continue
 
-    display = cv2.imread(projFrame)
-    print(display.shape)
+
     dspPoint = virtual_point(frame, hgmatrix)
-
-    print(round(dspPoint))
-
+    print(dspPoint)
     # draw a circle on where we clicked
-    cv2.circle(display, (382, 760), 9, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+    cv2.circle(display, dspPoint, 3, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+
 
     # Display the resulting projector image with a dot for the camera location
     cv2.imshow('projector', display)
+    if cv2.waitKey(1) & 0xFF == 0x1b:  # ord('q'):
+        break
 
-    cv2.imwrite('projection.jpg', display)
+    #cv2.imwrite('projection.jpg', display)
 """while (True): #if this is an infinite loop do all other functions have to be called from here.
     # Capture frame-by-frame
     ret, frame = cap.read()
