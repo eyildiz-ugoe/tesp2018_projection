@@ -7,12 +7,19 @@ from PIL import ImageDraw
 import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 
+background_height = 350
+background_width = 612
 
 # global variable to hold everything
 planets = stars = planet_list = []
 
 # for the sound stuff
 pygame.mixer.init()
+
+# marker stuff
+marker_file_name = ["marker_one_small.png","marker_two_small.png","marker_three_small.png","marker_four_small.png"]
+marker_points = [[0,0],[0,background_height-100],[background_width-100,0],[background_width-100,background_height-100]]
+
 
 """
 Planet class to make things easier to handle.
@@ -41,6 +48,13 @@ class Planet(object):
 def click_and_display(event, x, y, flags, param):
     # grab references to the global variables
     global img
+
+    #draw markers on the image
+    for marker_index, cp in enumerate(marker_points):
+        marker_image = cv2.imread(marker_file_name[marker_index])
+        h, w, d = marker_image.shape
+        img[cp[1]:cp[1] + h, cp[0]:cp[0] + w] = marker_image.copy()
+    h, w, d = img.shape
 
     #TODO: We need to get a new image frame every time the user clicks,
     #TODO: otherwise we keep writing on the same image

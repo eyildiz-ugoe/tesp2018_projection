@@ -120,8 +120,10 @@ def virtual_point(camFrame, hgmatrix):
     #The centre point in the camera image
     #pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
     pts = np.float32([ [round(w/2),round(h/2)] ]).reshape(-1,1,2)
+
     #pts = np.array([pts])
     print(pts)
+
     #line copied from prev year
     m = cv2.invert(hgmatrix)
 
@@ -158,6 +160,13 @@ while (True):
     if len(hgmatrix)==0:
         print("No homography matrix calculated")
         continue
+
+
+    display = cv2.imread(projFrame)
+    print(display.shape)
+    dspPoint = virtual_point(frame, hgmatrix)
+
+    print(dspPoint)
 
 
     dspPoint = virtual_point(frame, hgmatrix)
