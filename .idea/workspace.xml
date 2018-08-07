@@ -2,8 +2,33 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="afd5f7cb-0f4c-4e2c-befd-aa378f2e3847" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Earth.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Jupiter.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Mars.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Mercure.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Moon.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Neptune.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Pluton.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Saturne.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Sun.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Uranus.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Venus.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/background.mp3" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/camera_pose.py" beforeDir="false" afterPath="$PROJECT_DIR$/camera_pose.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/solar-system-1.jpeg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/display_info.py" beforeDir="false" afterPath="$PROJECT_DIR$/display_info.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/info.wav" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/marker_four_small.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/marker_one_small.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/marker_three_small.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/marker_two_small.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/projection.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stars-1.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stars-2.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stars-3.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stars-4.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stars-5.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/stars.jpg" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -14,25 +39,13 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file leaf-file-name="display_info.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/display_info.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2934">
-              <caret line="163" selection-start-line="163" selection-end-line="163" />
-              <folding>
-                <element signature="e#0#10#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="camera_pose.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/camera_pose.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="246">
-              <caret line="74" column="56" selection-start-line="74" selection-start-column="56" selection-end-line="74" selection-end-column="56" />
+            <state relative-caret-position="96">
+              <caret line="249" lean-forward="true" selection-start-line="249" selection-end-line="249" />
               <folding>
-                <element signature="e#1#19#0" expanded="true" />
+                <element signature="e#0#10#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -62,6 +75,14 @@
       <find>ransa</find>
       <find>circle</find>
       <find>debu</find>
+      <find>show_matches</find>
+      <find>orb2</find>
+      <find>print</find>
+      <find>smoothed_mapping</find>
+      <find>smooth_matrix</find>
+      <find>smoothenCenterMotion</find>
+      <find>EXP_SMOOTHING_FACTOR</find>
+      <find>tracked_velocity</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -206,29 +227,39 @@
     <frame x="50" y="-11" width="1317" height="780" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.19771864" />
+      <window_info content_ui="combo" id="Project" order="0" weight="0.19771864" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Event Log" order="7" side_tool="true" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.3298193" />
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Python Console" order="7" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.30421686" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.19578314" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info anchor="bottom" id="Terminal" order="7" />
       <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.3990964" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.20632531" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.24942966" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Find" order="1" />
     </layout>
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/camera_pose.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1314">
+          <caret line="73" lean-forward="true" selection-start-line="73" selection-end-line="73" />
+          <folding>
+            <element signature="e#0#10#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/display_info.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2448">
@@ -244,7 +275,7 @@
         <state relative-caret-position="54">
           <caret line="5" column="20" selection-start-line="5" selection-start-column="20" selection-end-line="5" selection-end-column="20" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#0#10#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -294,20 +325,17 @@
     <entry file="file://$PROJECT_DIR$/projection.py" />
     <entry file="file://$PROJECT_DIR$/display_info.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2934">
-          <caret line="163" selection-start-line="163" selection-end-line="163" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
+        <state>
+          <caret lean-forward="true" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/camera_pose.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="246">
-          <caret line="74" column="56" selection-start-line="74" selection-start-column="56" selection-end-line="74" selection-end-column="56" />
+        <state relative-caret-position="96">
+          <caret line="249" lean-forward="true" selection-start-line="249" selection-end-line="249" />
           <folding>
-            <element signature="e#1#19#0" expanded="true" />
+            <element signature="e#0#10#0" expanded="true" />
           </folding>
         </state>
       </provider>
