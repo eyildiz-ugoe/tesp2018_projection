@@ -5,12 +5,43 @@ from matplotlib import pyplot as plt
 background_height = 350
 background_width = 612
 MIN_MATCH_COUNT = 6
+MAX_MATCH_COUNT = 10
+CAM_WIDTH = 1920
+CAM_HEIGHT = 1080
 #just using this variable for testing purposes
 projFrame = 'solar_system.jpg'
 
 # marker stuff
 marker_file_name = ["marker_one_small.png","marker_two_small.png","marker_three_small.png","marker_four_small.png"]
 marker_points = [[0,0],[0,background_height-100],[background_width-100,0],[background_width-100,background_height-100]]
+
+
+
+
+######### Function Definitions #########
+def init_webcam(mirror=False):
+    cam = []
+    camera_height = []
+    camera_width = []
+    cam = cv2.VideoCapture(1)
+    cam.set(cv2.CAP_PROP_FPS,50)
+    cam.set(cv2.CAP_PROP_EXPOSURE,10)
+    cam.set(cv2.CAP_PROP_FRAME_WIDTH,CAM_WIDTH)
+    cam.set(cv2.CAP_PROP_FRAME_HEIGHT,CAM_HEIGHT)
+    try:
+        ret_val, camera_image = cam.read()
+        if len(camera_image) == 0:
+            print('Camera not connected')
+        camera_height,camera_width,d = camera_image.shape
+    except:
+        print("No external camera found, attempting to default to  internal camera")
+        cam = cv2.VideoCapture(0)
+        ret_val, camera_image = cam.read()
+        if len(camera_image) == 0:
+            raise
+        camera_height,camera_width,d = camera_image.shape
+    return cam, camera_height, camera_width
+
 
 
 #Function which takes the camera image and the projector frame and finds the keypoints in these images
@@ -29,7 +60,7 @@ def get_feature_match(camFrame, projFrame):
 
     #Consider trying to actually get sift to work here
     #initialise orb which is similar to sift but free
-    orb = cv2.ORB_create()
+    orb = cv2.ORB_create(nfeatures=500)
     #find the keypoints and descriptors using orb
     camera_kp, camera_des = orb.detectAndCompute(camera_gray, None)
     proj_kp, proj_des = orb.detectAndCompute(proj_gray, None)
@@ -42,6 +73,8 @@ def get_feature_match(camFrame, projFrame):
 
     #sort them in the order of their distance
     matches = sorted(matches, key=lambda x:x.distance)
+
+
 
     #Test for the knnmatcher
     '''good = []
@@ -89,7 +122,7 @@ def get_homography(matches, camera_kp, proj_kp):
         if m.distance < 0.75*n.distance:
             good.append(m)'''
 
-    good = matches[:10]
+    good = matches[:MAX_MATCH_COUNT]
     #check that there is enough matches
     if len(good)>MIN_MATCH_COUNT:
         try:
@@ -163,15 +196,25 @@ for marker_index, cp in enumerate(marker_points):
 h, w, d = display.shape
 
 
-
-cv2.namedWindow('projector', cv2.WND_PROP_FULLSCREEN)
-cv2.setWindowProperty('projector',cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+# Create an opencv window to display the projection into
+cv2.namedWindow("projector", cv2.WINDOW_NORMAL)
+cv2.namedWindow("debug", cv2.WINDOW_NORMAL)
+#cv2.namedWindow('projector', cv2.WND_PROP_FULLSCREEN)
+#cv2.setWindowProperty('projector',cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 cv2.imshow('projector', display)
+
+# Set up the camera
+cam, camera_height, camera_width = init_webcam()
+CAM_WIDTH = camera_width
+CAM_HEIGHT = camera_height
+
 while (True):
     cv2.imshow('projector', display)
-    ret, frame = cap.read()
+    ret, frame = cam.read()
+
     matches, camera_kp, proj_kp = get_feature_match(frame, display)
 
+    print(frame.shape)
     hgmatrix = get_homography(matches, camera_kp, proj_kp)
     print(hgmatrix)
     if len(hgmatrix)==0:
