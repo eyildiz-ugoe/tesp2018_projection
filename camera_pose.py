@@ -40,6 +40,20 @@ def init_webcam(mirror=False):
     return cam, camera_height, camera_width
 
 
+def get_feature_matches(projectionImage_des, cameraImage):
+    # Find the keypoints and descriptors with ORB
+    cameraImage_kp = orb.detect(cameraImage, None)
+
+    # Compute matches
+    matches = []
+    if len(cameraImage_kp) > 0:
+        cameraImage_kp, cameraImage_des = orb.compute(cameraImage, cameraImage_kp)
+        matches = bf.match(projectionImage_des, cameraImage_des)
+        if len(matches) > MAX_MATCH_COUNT:
+            matches = sorted(matches, key=lambda x: x.distance)[0:MAX_MATCH_COUNT]
+
+    return matches, cameraImage_kp
+
 # Function to find the homography matrix which transforms from the camera image to the projector image
 def get_homography(matches, projectionImage_kp, cameraImage_kp):
 
@@ -123,16 +137,8 @@ if __name__ == '__main__':
         # Get an image from the camera
         ret_val, cameraImage = cam.read()
 
-        # Find the keypoints and descriptors with ORB
-        cameraImage_kp = orb.detect(cameraImage, None)
-
-        # Compute matches
-        matches = []
-        if len(cameraImage_kp) > 0:
-            cameraImage_kp, cameraImage_des = orb.compute(cameraImage, cameraImage_kp)
-            matches = bf.match(projectionImage_des, cameraImage_des)
-            if len(matches) > MAX_MATCH_COUNT:
-                matches = sorted(matches, key=lambda x: x.distance)[0:MAX_MATCH_COUNT]
+        # Get the matching features
+        matches, cameraImage_kp = get_feature_matches(projectionImage_des, cameraImage)
 
         # if we can't find any matches, just keep displaying the image and inform the user
         if len(matches) <= MIN_MATCH_COUNT:
