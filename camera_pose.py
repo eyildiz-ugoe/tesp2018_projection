@@ -85,15 +85,20 @@ def get_homography(matches, camera_kp, proj_kp):
     good = matches[:10]
     #check that there is enough matches
     if len(good)>MIN_MATCH_COUNT:
+        try:
+            #Not really sure what this is doing, what are queryIdx and trainIdx
+            src_pts = np.float32([ proj_kp[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
+            #getting an error here that the list index is out of range.
+            # I think this is because there are less feature points being picked up in the camera image
+            # but it's always less that the number of points
+            #in good so it shouldn't be an issue
+            dst_pts = np.float32([ camera_kp[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
 
-        #Not really sure what this is doing, what are queryIdx and trainIdx
-        src_pts = np.float32([ proj_kp[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
-        dst_pts = np.float32([ camera_kp[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+            # get the homography matrix
+            homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+        except IndexError:
+            print("Adjust camera angle")
 
-
-
-        #get the homography matrix
-        homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
         return homography_matrix
     else:
@@ -114,32 +119,49 @@ def virtual_point(camFrame, hgmatrix):
 
     #The centre point in the camera image
     #pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
-    pts = np.array([[w/2, h/2]], dtype='float32')
+    pts = np.float32([ [round(w/2),round(h/2)] ]).reshape(-1,1,2)
     pts = np.array([pts])
-    # find the location of this same point in the projector image
-    dst = cv2.perspectiveTransform(pts, hgmatrix)
 
+    #line copied from prev year
+    m = cv2.invert(hgmatrix)
+
+    # find the location of this same point in the projector image
+    dst = cv2.perspectiveTransform(pts, m[1])
+    #adjust dst so that it is a tuple
+    dst = tuple(dst.reshape(1, -1)[0])
     return dst
 
 
 
 ###################Main piece of code
-
+#TO DO in main
+# Include a if statement to check that hgmatrix is actually a matrix. Could set some flag in get_homography in order to do this
+# Currently the dspPoint is out of the range of the size of the projector image, so something is going wrong. This is
+# maybe an issue with virtual_point
 
 #initialise the webcam
 cap = cv2.VideoCapture(1)
 ret = False
 while ret == False:
     ret, frame = cap.read()
-    matches, kp1, kp2 = get_feature_match(frame, projFrame)
+    matches, camera_kp, proj_kp = get_feature_match(frame, projFrame)
 
-    hgmatrix = get_homography(matches, kp1, kp2)
+    hgmatrix = get_homography(matches, camera_kp, proj_kp)
     print(hgmatrix)
 
     display = cv2.imread(projFrame)
-    
+    print(display.shape)
+    dspPoint = virtual_point(frame, hgmatrix)
 
+    print(round(dspPoint))
 
+    # draw a circle on where we clicked
+    cv2.circle(display, (382, 760), 9, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+
+    # Display the resulting projector image with a dot for the camera location
+    cv2.imshow('projector', display)
+
+    cv2.imwrite('projection.jpg', display)
 """while (True): #if this is an infinite loop do all other functions have to be called from here.
     # Capture frame-by-frame
     ret, frame = cap.read()
