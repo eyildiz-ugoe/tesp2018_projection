@@ -120,7 +120,6 @@ def virtual_point(camFrame, hgmatrix):
     #The centre point in the camera image
     #pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
     pts = np.float32([ [round(w/2),round(h/2)] ]).reshape(-1,1,2)
-    pts = np.array([pts])
 
     #line copied from prev year
     m = cv2.invert(hgmatrix)
@@ -153,7 +152,7 @@ while ret == False:
     print(display.shape)
     dspPoint = virtual_point(frame, hgmatrix)
 
-    print(round(dspPoint))
+    print(dspPoint)
 
     # draw a circle on where we clicked
     cv2.circle(display, (382, 760), 9, (0, 0, 255), thickness=1, lineType=8)  # color BGR
