@@ -199,7 +199,7 @@ if __name__ == '__main__':
             print("Failed to prevent scattering")
 
         smoothenCenterMotion(new_point, delta_t)
-        cv2.circle(processedImage, tuple(new_point), 10, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+        cv2.circle(processedImage, tuple(tracked_centre_point), 10, (0, 0, 255), thickness=1, lineType=8)  # color BGR
 
         # Display the resulting projector image with a dot for the camera location
         cv2.imshow('Projector', processedImage)
