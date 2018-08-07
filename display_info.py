@@ -1,4 +1,5 @@
 import cv2
+import pygame
 import numpy as np
 from PIL import ImageFont
 from PIL import Image
@@ -11,7 +12,7 @@ from pygame import mixer # Load the required library
 planets = stars = planet_list = []
 
 # for the sound stuff
-mixer.init()
+pygame.mixer.init()
 
 """
 Planet class to make things easier to handle.
@@ -23,17 +24,17 @@ class Planet(object):
     size = 0 # multiplier only. x times of earth's
     gravity = 0 # multiplier only. x times of earth's
     moons = [] # only the names
-    elementsFound = []
+    compoundFound = []
     orbitTime = 0 # in days (earth)
     dayTime = 0 # in days (earth)
 
-    def __init__(self, name, distanceFromEarth, size, gravity, moons, elementsFound, orbitTime, dayTime):
+    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime):
         self.name = name
         self.distanceFromSun = distanceFromEarth
         self.size = size
         self.gravity = gravity
         self.moons = moons
-        self.elementsFound = elementsFound
+        self.compoundFound = compoundFound
         self.orbitTime = orbitTime
         self.dayTime = dayTime
 
@@ -59,12 +60,10 @@ def click_and_display(event, x, y, flags, param):
         elif(x == 200 && y == 250):
             planet = planet_list.find('Venus')"""
 
-        for i in range(len(planet_list)):
-            print(planet_list[i].name)
+        # play the info effect
+        #click_effect = pygame.mixer.Sound('info.wav')
+        #click_effect.play()
 
-        # play the info sound
-        #mixer.music.load('info.mp4')
-        #mixer.music.play()
 
         # for the time being we only print the info of the sun, which is the 0th element
         # once we figure out which celestial body is selected, we need to pass that specific planet with:
@@ -98,10 +97,10 @@ def prepare_info(planet):
     info = "-Celestial Body Info" \
            "\n--Name: " + str(planet.name) + \
            "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " lightyears" + \
-           "\n--Size: x" + str(planet.size) + " of Earth" + \
-           "\n--Gravity: x" + str(planet.gravity) + " of Earth" + \
+           "\n--Size: " + str(planet.size) + " x of Earth" + \
+           "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
            "\n--Moons: " + str(planet.moons) + \
-           "\n--Elements Found: " + str(planet.elementsFound) + \
+           "\n--Compounds Found: " + str(planet.compoundFound) + \
            "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" + \
            "\n--Day Time: " + str(planet.dayTime) + " Earth days"
 
@@ -110,8 +109,8 @@ def prepare_info(planet):
 if __name__ == "__main__":
 
     # play the background sound
-    #mixer.music.load('background.mp4')
-    #mixer.music.play()
+    mixer.music.load('background.mp3')
+    mixer.music.play(-1)
 
     img = cv2.imread('solar_system.jpg',1)
     clone = img.copy()

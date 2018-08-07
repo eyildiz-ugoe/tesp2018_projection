@@ -1,0 +1,106 @@
+<celestialBodies>
+<stars>
+	<star>
+		<item name="Name">Sun</item>
+        <item name="Distance from the Earth">149.6</item>
+		<item name="Size">109</item>
+        <item name="Moons">0</item>
+		<item name="Gravity">27.94</item>
+        <item name="Compounds Found">H, HE</item>
+		<item name="Orbiting Time">0</item>
+        <item name="Day Time">25</item>
+	</star>
+</stars>
+<planets>  
+    <planet>
+        <item name="Name">Mercury</item>
+        <item name="Distance from the Earth">91.7</item>
+		<item name="Size">0.38</item>
+        <item name="Moons">0</item>
+		<item name="Gravity">3.7</item>
+        <item name="Compoundss Found">Na, Mg, O, H, P, Ca, Fe, Al</item>
+		<item name="Orbiting Time">88</item>
+        <item name="Day Time">4222.6</item>
+    </planet>
+    <planet>
+        <item name="Name">Venus</item>
+        <item name="Distance from the Earth">41.44</item>
+		<item name="Size">0.95</item>
+        <item name="Moons">0</item>
+		<item name="Gravity">0.91</item>
+        <item name="Compounds Found">CO2, N2, SO2</item>
+		<item name="Orbiting Time">224.7</item>
+        <item name="Day Time">2802.2</item>
+    </planet>
+    <planet>
+        <item name="Name">Earth</item>
+        <item name="Distance from the Earth">0</item>
+		<item name="Size">1</item>
+        <item name="Moons">1</item>
+		<item name="Gravity">1</item>
+        <item name="Compounds Found">N2, O2, Ar , CO2</item>
+		<item name="Orbiting Time">365.2</item>
+        <item name="Day Time">24</item>
+    </planet>
+    <planet>
+        <item name="Name">Mars</item>
+        <item name="Distance from the Earth">78.39</item>
+		<item name="Size">0.53</item>
+        <item name="Moons">0</item>
+		<item name="Gravity">0.38</item>
+        <item name="Compounds Found">CO2, N2, Ar, O2</item>
+		<item name="Orbiting Time">687</item>
+        <item name="Day Time">24.7</item>
+    </planet>
+    <planet>
+        <item name="Name">Jupiter</item>
+        <item name="Distance from the Earth">628.76</item>
+		<item name="Size">11.21</item>
+        <item name="Moons">79</item>
+		<item name="Gravity">2.53</item>
+        <item name="Compounds Found">H2, He, CH4, NH3</item>
+		<item name="Orbiting Time">4331</item>
+        <item name="Day Time">9.9</item>
+    </planet>
+    <planet>
+        <item name="Name">Saturn</item>
+        <item name="Distance from the Earth">1277.42</item>
+		<item name="Size">9.45</item>
+        <item name="Moons">62</item>
+		<item name="Gravity">1.07</item>
+        <item name="Compounds Found">H2, He, CH4, NH3</item>
+		<item name="Orbiting Time">10,747</item>
+        <item name="Day Time">10.7</item>
+    </planet>
+    <planet>
+        <item name="Name">Uranus</item>
+        <item name="Distance from the Earth">2719.99</item>
+		<item name="Size">4</item>
+        <item name="Moons">27</item>
+		<item name="Gravity">0.91</item>
+        <item name="Compounds Found">H2, He, CH4, HD</item>
+		<item name="Orbiting Time">30,589</item>
+        <item name="Day Time">17.2</item>
+    </planet>
+    <planet>
+        <item name="Name">Neptune</item>
+        <item name="Distance from the Earth">4347.31</item>
+		<item name="Size">3.88</item>
+        <item name="Moons">14</item>
+		<item name="Gravity">1.14</item>
+        <item name="Compounds Found">H2, He, CH4, HD</item>
+		<item name="Orbiting Time">59,800</item>
+        <item name="Day Time">16.1</item>
+    </planet>
+    <planet>
+        <item name="Name">Pluto</item>
+        <item name="Distance from the Earth">5750.54</item>
+		<item name="Size">0.19</item>
+        <item name="Moons">5</item>
+		<item name="Gravity">0.06</item>
+        <item name="Compounds Found">CH4, N2</item>
+		<item name="Orbiting Time">90,560</item>
+        <item name="Day Time">153.3</item>
+    </planet>
+</planets>  
+</celestialBodies>
