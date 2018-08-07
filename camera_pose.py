@@ -2,9 +2,16 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 
+background_height = 350
+background_width = 612
 MIN_MATCH_COUNT = 6
 #just using this variable for testing purposes
 projFrame = 'solar_system.jpg'
+
+# marker stuff
+marker_file_name = ["marker_one_small.png","marker_two_small.png","marker_three_small.png","marker_four_small.png"]
+marker_points = [[0,0],[0,background_height-100],[background_width-100,0],[background_width-100,background_height-100]]
+
 
 #Function which takes the camera image and the projector frame and finds the keypoints in these images
 #It then finds the matches
@@ -16,8 +23,8 @@ def get_feature_match(camFrame, projFrame):
     camera_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
 
     #switch these round later, this was just for testing purposes
-    img2 = cv2.imread(projFrame)
-    #img2 = projFrame
+    #img2 = cv2.imread(projFrame)
+    img2 = projFrame
     proj_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
     #Consider trying to actually get sift to work here
@@ -48,8 +55,8 @@ def get_feature_match(camFrame, projFrame):
 
     #test for matcher
     # Draw first 10 matches.
-    img3 = cv2.drawMatches(img1, camera_kp, img2, proj_kp, matches[:10], None, flags=2)
-    plt.imshow(img3), plt.show()
+    '''img3 = cv2.drawMatches(img1, camera_kp, img2, proj_kp, matches[:10], None, flags=2)
+    plt.imshow(img3), plt.show()'''
 
     return matches, camera_kp, proj_kp
 
@@ -147,13 +154,23 @@ def virtual_point(camFrame, hgmatrix):
 #initialise the webcam
 cap = cv2.VideoCapture(1)
 display = cv2.imread(projFrame)
+
+# draw markers on the image
+for marker_index, cp in enumerate(marker_points):
+    marker_image = cv2.imread(marker_file_name[marker_index])
+    h, w, d = marker_image.shape
+    display[cp[1]:cp[1] + h, cp[0]:cp[0] + w] = marker_image.copy()
+h, w, d = display.shape
+
+
+
 cv2.namedWindow('projector', cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty('projector',cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
 cv2.imshow('projector', display)
 while (True):
     cv2.imshow('projector', display)
     ret, frame = cap.read()
-    matches, camera_kp, proj_kp = get_feature_match(frame, projFrame)
+    matches, camera_kp, proj_kp = get_feature_match(frame, display)
 
     hgmatrix = get_homography(matches, camera_kp, proj_kp)
     print(hgmatrix)
@@ -162,8 +179,6 @@ while (True):
         continue
 
 
-    display = cv2.imread(projFrame)
-    print(display.shape)
     dspPoint = virtual_point(frame, hgmatrix)
 
     print(dspPoint)
@@ -177,8 +192,8 @@ while (True):
 
     # Display the resulting projector image with a dot for the camera location
     cv2.imshow('projector', display)
-    if cv2.waitKey(1) & 0xFF == 0x1b:  # ord('q'):
-        break
+    if cv2.waitKey(33) == ord('a'):
+        exit()
 
     #cv2.imwrite('projection.jpg', display)
 """while (True): #if this is an infinite loop do all other functions have to be called from here.
