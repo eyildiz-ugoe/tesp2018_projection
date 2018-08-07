@@ -1,29 +1,26 @@
 import numpy as np
 import cv2
-from matplotlib import pyplot as plt
 
+# settings
 background_height = 350
 background_width = 612
 MIN_MATCH_COUNT = 6
-MAX_MATCH_COUNT = 10
-CAM_WIDTH = 1920
-CAM_HEIGHT = 1080
+MAX_MATCH_COUNT = 20
+CAM_WIDTH = 1280
+CAM_HEIGHT = 960
+
 #just using this variable for testing purposes
-projFrame = 'solar_system.jpg'
+imageToBeProjected = 'solar_system.jpg'
 
 # marker stuff
 marker_file_name = ["marker_one_small.png","marker_two_small.png","marker_three_small.png","marker_four_small.png"]
 marker_points = [[0,0],[0,background_height-100],[background_width-100,0],[background_width-100,background_height-100]]
 
-
-
-
-######### Function Definitions #########
 def init_webcam(mirror=False):
     cam = []
     camera_height = []
     camera_width = []
-    cam = cv2.VideoCapture(1)
+    cam = cv2.VideoCapture(1) # try the external camera first
     cam.set(cv2.CAP_PROP_FPS,50)
     cam.set(cv2.CAP_PROP_EXPOSURE,10)
     cam.set(cv2.CAP_PROP_FRAME_WIDTH,CAM_WIDTH)
@@ -43,266 +40,125 @@ def init_webcam(mirror=False):
     return cam, camera_height, camera_width
 
 
-
-#Function which takes the camera image and the projector frame and finds the keypoints in these images
-#It then finds the matches
-#Returns matches, and keypoints for both images
-def get_feature_match(camFrame, projFrame):
-    #Get the images and convert them to gray scale
-    #img1 = cv2.imread(camFrame)
-    img1 = camFrame
-    camera_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-
-    #switch these round later, this was just for testing purposes
-    #img2 = cv2.imread(projFrame)
-    img2 = projFrame
-    proj_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-    #Consider trying to actually get sift to work here
-    #initialise orb which is similar to sift but free
-    orb = cv2.ORB_create(nfeatures=500)
-    #find the keypoints and descriptors using orb
-    camera_kp, camera_des = orb.detectAndCompute(camera_gray, None)
-    proj_kp, proj_des = orb.detectAndCompute(proj_gray, None)
-
-    #Brute-Force matcher
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-
-    #match descriptor
-    matches = bf.match(camera_des, proj_des)
-
-    #sort them in the order of their distance
-    matches = sorted(matches, key=lambda x:x.distance)
-
-
-
-    #Test for the knnmatcher
-    '''good = []
-    for m, n in matches:
-        if m.distance < 0.75 * n.distance:
-            good.append([m])
-    # cv2.drawMatchesKnn expects list of lists as matches.
-
-    img3 = cv2.drawMatchesKnn(img1, camera_kp, img2, proj_kp, matches, None,  flags=2)
-    plt.imshow(img3), plt.show()'''
-
-    #test for matcher
-    # Draw first 10 matches.
-    '''img3 = cv2.drawMatches(img1, camera_kp, img2, proj_kp, matches[:10], None, flags=2)
-    plt.imshow(img3), plt.show()'''
-
-    return matches, camera_kp, proj_kp
-
-#####FLANN based matcher didn't work :( Maybe because I'm using orb instead of sift
-    #FLANN based matcher
-    #FLANN parameters
-    #FLANN_INDEX_LSH = 6
-    #index_params = dict(algorithm=FLANN_INDEX_LSH, table_number=6, key_size=12, multi_probe_level=1)
-    #search_params = dict(checks=50) # or pass empty dictionary
-
-    #flann = cv2.FlannBasedMatcher(index_params, search_params)
-
-    #matches = flann.knnMatch(des1, des2, k=2)
-
-    #ratio test which can be found in D.Lowe's paper to store only good matches
-    #good = []
-    #for m,n in matches:
-     #   if m.distance < 0.7*n.distance:
-      #      good.append(m)
-
-
-    #return good, kp1, kp2
-
 #Function to find the homography matrix which transforms from the camera image to the projector image
-def get_homography(matches, camera_kp, proj_kp):
-    homography_matrix = []
-    #Apply ratio test to get good matches - redundant code as using new matching method
-    '''good = []
-    for m,n in matches:
-        if m.distance < 0.75*n.distance:
-            good.append(m)'''
+def get_homography(matches, projectionImage_kp, cameraImage_kp):
+    homographyMatrix = []
 
-    good = matches[:MAX_MATCH_COUNT]
-    #check that there is enough matches
-    if len(good)>MIN_MATCH_COUNT:
+    # Only perform this if there are enough matches
+    if len(matches) > MIN_MATCH_COUNT:
         try:
-            #Not really sure what this is doing, what are queryIdx and trainIdx
-            src_pts = np.float32([ proj_kp[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-            #getting an error here that the list index is out of range.
-            # I think this is because there are less feature points being picked up in the camera image
-            # but it's always less that the number of points
-            #in good so it shouldn't be an issue
-            dst_pts = np.float32([ camera_kp[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+            src_pts = np.float32([projectionImage_kp[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+            dst_pts = np.float32([cameraImage_kp[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
             # get the homography matrix
-            homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            homographyMatrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            matchesMask = mask.ravel().tolist()
         except IndexError:
-            print("Adjust camera angle")
-
-
-        return homography_matrix
+            print("ERROR: Adjust camera angle")
     else:
-        print("Not enough matches are found - %d/%d" % (len(good), MIN_MATCH_COUNT))
-        mask = None
-        #if a homography matrix could not be found return 0. I am finding it hard to test for this.
-        #Need something we can test for later in cases where there weren;t enough matches
-        #INitialise the matrix with zeros at the start of this function and just return the empty matrix if it goes into
-        #the else case
-        #Should also set mask = None or something so there are no errors  in the future
-        return homography_matrix
+        print("Not enough matches are found - %d/%d" % (len(matches), MIN_MATCH_COUNT))
+        matchesMask = None
 
-#returns the location of the centre of the camera image in the projector image
-def virtual_point(camFrame, hgmatrix):
-    #get the width and height of the camera image
-    #img1 = cv2.imread(camFrame) <<< do I need this?
-    h,w,d = camFrame.shape
+    return homographyMatrix, matchesMask
 
-    #The centre point in the camera image
-    #pts = np.float32([[w/2,h/2]]).reshape(-1,1,2)
-    pts = np.float32([ [round(w/2),round(h/2)] ]).reshape(-1,1,2)
+def show_matches(projectionImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix):
+    h,w,d = projectionImage.shape
+    pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1, 1, 2)
+    dst = cv2.perspectiveTransform(pts,homographyMatrix)
+    cameraImage = cv2.polylines(cameraImage, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
 
-    #pts = np.array([pts])
-    print(pts)
+    draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+                       singlePointColor = None,
+                       matchesMask = matchesMask, # draw only inliers
+                       flags = 2)
 
-    #line copied from prev year
-    m = cv2.invert(hgmatrix)
+    visualizationImage = cv2.drawMatches(projectionImage, projectionImage_kp, cameraImage, cameraImage_kp, matches, None, **draw_params)
+    cv2.imshow('Debug', visualizationImage)
 
+# Returns the location of the centre of the camera image in the projector image
+def virtual_point(homographyMatrix):
+    pts = np.float32([ [round(CAM_WIDTH/2),round(CAM_HEIGHT/2)] ]).reshape(-1,1,2)
+    m = cv2.invert(homographyMatrix)
     # find the location of this same point in the projector image
     dst = cv2.perspectiveTransform(pts, m[1])
-
-    #adjust dst so that it is a tuple
-    dst = tuple(dst.reshape(1, -1)[0])
-
-    dst = (round(dst[0]), round(dst[1]))
     return dst
 
+if __name__ == '__main__':
 
+    # Set up the camera
+    cam, camera_height, camera_width = init_webcam()
+    CAM_WIDTH = camera_width
+    CAM_HEIGHT = camera_height
 
-###################Main piece of code
-#TO DO in main
-# Include a if statement to check that hgmatrix is actually a matrix. Could set some flag in get_homography in order to do this
-# Currently the dspPoint is out of the range of the size of the projector image, so something is going wrong. This is
-# maybe an issue with virtual_point
+    # Load the image that is going to be projected
+    projectionImage = cv2.imread(imageToBeProjected)
 
-#initialise the webcam
-cap = cv2.VideoCapture(1)
-display = cv2.imread(projFrame)
+    # Draw markers on the image
+    for marker_index, cp in enumerate(marker_points):
+        marker_image = cv2.imread(marker_file_name[marker_index])
+        h, w, d = marker_image.shape
+        projectionImage[cp[1]:cp[1] + h, cp[0]:cp[0] + w] = marker_image.copy()
+    h, w, d = projectionImage.shape
 
-# draw markers on the image
-for marker_index, cp in enumerate(marker_points):
-    marker_image = cv2.imread(marker_file_name[marker_index])
-    h, w, d = marker_image.shape
-    display[cp[1]:cp[1] + h, cp[0]:cp[0] + w] = marker_image.copy()
-h, w, d = display.shape
+    # initialize the feature detector
+    # we use orb, make it ready
+    orb = cv2.ORB_create(nfeatures=500)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
+    # Create an opencv window to display the projection into
+    cv2.namedWindow("Projector", cv2.WINDOW_NORMAL)
+    cv2.imshow('Projector', projectionImage)
+    cv2.namedWindow("Debug", cv2.WINDOW_NORMAL)
 
-# Create an opencv window to display the projection into
-cv2.namedWindow("projector", cv2.WINDOW_NORMAL)
-cv2.namedWindow("debug", cv2.WINDOW_NORMAL)
-#cv2.namedWindow('projector', cv2.WND_PROP_FULLSCREEN)
-#cv2.setWindowProperty('projector',cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
-cv2.imshow('projector', display)
+    # work with a copy
+    processedImage = projectionImage.copy()
 
-# Set up the camera
-cam, camera_height, camera_width = init_webcam()
-CAM_WIDTH = camera_width
-CAM_HEIGHT = camera_height
+    while(True):
 
-while (True):
-    cv2.imshow('projector', display)
-    ret, frame = cam.read()
+        orb2 = cv2.ORB_create(nfeatures=500)
+        projectionImage_kp = orb2.detect(processedImage, None)
+        projectionImage_kp, projectionImage_des = orb2.compute(processedImage, projectionImage_kp)
 
-    matches, camera_kp, proj_kp = get_feature_match(frame, display)
+        # Get an image from the camera
+        ret_val, cameraImage = cam.read()
 
-    print(frame.shape)
-    hgmatrix = get_homography(matches, camera_kp, proj_kp)
-    print(hgmatrix)
-    if len(hgmatrix)==0:
-        print("No homography matrix calculated")
-        continue
+        # Find the keypoints and descriptors with ORB
+        cameraImage_kp = orb.detect(cameraImage, None)
 
+        matches = []
+        if len(cameraImage_kp) > 0:
+            cameraImage_kp, cameraImage_des = orb.compute(cameraImage, cameraImage_kp)
+            matches = bf.match(projectionImage_des, cameraImage_des)
+            if len(matches) > MAX_MATCH_COUNT:
+                matches = sorted(matches, key=lambda x: x.distance)[0:MAX_MATCH_COUNT]
 
-    dspPoint = virtual_point(frame, hgmatrix)
+        # if we can't find any matches, just keep displaying the image and inform the user
+        if(len(matches) <= MAX_MATCH_COUNT):
+            cv2.imshow('Projector', processedImage)
+            print('Could not find matches.')
+            cv2.waitKey(10)
+            continue
 
-    print(dspPoint)
+        # Now compute the Homography
+        homographyMatrix, matchesMask = get_homography(matches, projectionImage_kp, cameraImage_kp)
+        if len(homographyMatrix)==0:
+            print("No homography matrix calculated")
+            continue
 
+        # Visualize!
+        show_matches(processedImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix)
 
-    dspPoint = virtual_point(frame, hgmatrix)
-    print(dspPoint)
-    # draw a circle on where we clicked
-    cv2.circle(display, dspPoint, 3, (0, 0, 255), thickness=1, lineType=8)  # color BGR
+        # Draw a virtual point on the image
+        dspPoint = virtual_point(homographyMatrix)
 
+        # draw a circle on where we clicked
+        cv2.circle(projectionImage, dspPoint, 20, (0, 0, 255), thickness=1, lineType=8)  # color BGR
 
-    # Display the resulting projector image with a dot for the camera location
-    cv2.imshow('projector', display)
-    if cv2.waitKey(33) == ord('a'):
-        exit()
+        # Display the resulting projector image with a dot for the camera location
+        cv2.imshow('Projector', processedImage)
+        if cv2.waitKey(33) == ord('a'):
+            break
 
-    #cv2.imwrite('projection.jpg', display)
-"""while (True): #if this is an infinite loop do all other functions have to be called from here.
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-
-    #Get the best matching features from the images and the key points from each image
-    matches, kp1, kp2 = get_feature_match(frame, projFrame)
-    #get the homography matrix from these features
-    hgmatrix = get_homography(matches, kp1, kp2)
-
-    display = cv2.imread(projFrame)
-
-    #if hgmatrix:
-    #print(hgmatrix.shape)
-    #get the location of the centre of the camera image in the projector image
-    dspPoint = virtual_point(frame, hgmatrix)
-    print(dspPoint)
-    dspPoint = tuple(dspPoint.reshape(1, -1)[0])
-    print(dspPoint)
-    # draw a circle on where we clicked
-    cv2.circle(display, dspPoint[0], 3, (0, 0, 255), thickness=-1, lineType=8)  # color BGR
-
-
-
-
-    # Display the resulting projector image with a dot for the camera location
-    cv2.imshow('projector', display)
-    if cv2.waitKey(1) & 0xFF == 0x1b:  # ord('q'):
-        break
-"""
-# When everything done, release the capture
-cap.release()
-cv2.destroyAllWindows()
-
-
-
-
-
-
-
-
-#def get_feature_match(camFrame, projFrame):
-    #Get the images and convert them to gray scale
-    #img1 = cv2.imread(camFrame)
-    #gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-
-    #img2 = cv2.imread(projFrame)
-    #gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-    #initialise sift
-    #sift = cv2.SIFT()
-    #find the keypoints and descriptors using sift
-    #kp1, des1 = sift.detectAndCompute(gray1, None)
-    #kp2, des2 = sift.detectAndCompute(gray2, None)
-
-
-    #BFMatcher with default params
-    #bf = cv2.BFMatcher()
-    #gives k best matches
-    #matches = bf.knnMatch(des1, des2, k=2)
-
-    #Apply ratio test from paper by D.Lowe
-    #good = []
-    #for m, n in matches:
-    #    if m.distance < 0.75*n.distance:
-    #        good.append([m])
-
-    #return good
+    # When everything done, release the capture
+    cam.release()
+    cv2.destroyAllWindows()
