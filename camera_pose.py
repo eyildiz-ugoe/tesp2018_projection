@@ -348,10 +348,11 @@ if __name__ == '__main__':
     cv2.imshow('Projector', projectionImage)
     cv2.namedWindow("Debug", cv2.WINDOW_NORMAL)
 
-    # work with a copy
-    processedImage = projectionImage.copy()
-
     while True:
+
+        # work with a copy
+        processedImage = projectionImage.copy()
+
         # Find keypoints in the projected image
         orb2 = cv2.ORB_create(nfeatures=500)
         projectionImage_kp = orb2.detect(processedImage, None)
