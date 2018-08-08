@@ -1,6 +1,7 @@
 import cv2
 import pygame
 import numpy as np
+import math
 from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
@@ -291,11 +292,11 @@ def get_camera_rotation(homographyMatrix):
     #angle between the vectors
     angle = np.arcsin(np.clip(sinAngle, -1.0, 1.0))
 
-    print("The angle between the camera and the projector is:")
-    print(angle)
+    #print("The angle between the camera and the projector is:")
+    #print(angle)
     # calculate the 2D rotation matrix from this angle
     rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-    return rotation_matrix
+    return angle
 
 
 
@@ -395,6 +396,13 @@ if __name__ == '__main__':
 
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
+
+        # rotate the shuttle as the camera does
+        rows, cols, w = shuttleIcon.shape
+        angle = get_camera_rotation(smoothenedMatrix)
+        angleInDegrees = round(math.degrees(math.asin(angle)),2) # convert radian to degrees
+        M = cv2.getRotationMatrix2D((cols / 2, rows / 2), angleInDegrees, 1) 
+        shuttleIcon = cv2.warpAffine(shuttleIcon, M, (cols, rows))
 
         # Overlay transparent images at desired postion(x,y) and Scale.
         result = transparentOverlay(processedImage, shuttleIcon, tuple(trackedCenterPoint), 0.7)
