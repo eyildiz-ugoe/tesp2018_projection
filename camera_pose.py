@@ -266,6 +266,39 @@ def transparentOverlay(backgroundImage, overlayImage, pos=(0, 0), scale=1):
     return backgroundImage
 
 
+'''Takes 2 vectors and returns the rotation matrix between these 2 vectors'''
+
+
+def get_camera_rotation(homographyMatrix):
+    # Points in the camera frame
+    camera_pts = np.float32([[round(CAM_WIDTH / 2), round(CAM_HEIGHT / 2)],
+                             [round(10 + CAM_WIDTH / 2), round(10 + CAM_HEIGHT / 2)]]).reshape(-1, 1, 2)
+    # Find these points in the projector image
+    proj_pts = cv2.perspectiveTransform(camera_pts, homographyMatrix)
+
+    # Find the vectors between the sets of points
+    camera_vector = (camera_pts[0][0][0] - camera_pts[1][0][0], camera_pts[0][0][1] - camera_pts[1][0][1])
+    proj_vector = (proj_pts[0][0][0] - proj_pts[1][0][0], proj_pts[0][0][1] - proj_pts[1][0][1])
+
+    # change the vectors to unit vectors
+    camera_vector = camera_vector / np.absolute(np.linalg.norm(camera_vector))
+    proj_vector = proj_vector / np.absolute(np.linalg.norm(proj_vector))
+
+    # calculate the angle between the 2 vectors
+    # Change the sign of the angle if the rocket is turning the opposite way to desired
+    #sine of the angle
+    sinAngle = camera_vector[0] * proj_vector[1] - camera_vector[1] * proj_vector[0]
+    #angle between the vectors
+    angle = np.arcsin(np.clip(sinAngle, -1.0, 1.0))
+
+    print("The angle between the camera and the projector is:")
+    print(angle)
+    # calculate the 2D rotation matrix from this angle
+    rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    return rotation_matrix
+
+
+
 if __name__ == '__main__':
 
     # play the background sound
