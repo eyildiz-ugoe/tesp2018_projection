@@ -2,12 +2,8 @@ import cv2
 import pygame
 import numpy as np
 import math
-from PIL import ImageFont
-from PIL import Image
-from PIL import ImageDraw
+import imutils
 import xml.etree.ElementTree as ET
-
-from matplotlib.pyplot import over
 from pygame import mixer # Load the required library
 
 # for the sound stuff
@@ -268,8 +264,6 @@ def transparentOverlay(backgroundImage, overlayImage, pos=(0, 0), scale=1):
 
 
 '''Takes 2 vectors and returns the rotation matrix between these 2 vectors'''
-
-
 def get_camera_rotation(homographyMatrix):
     # Points in the camera frame
     camera_pts = np.float32([[round(CAM_WIDTH / 2), round(CAM_HEIGHT / 2)],
@@ -292,12 +286,10 @@ def get_camera_rotation(homographyMatrix):
     #angle between the vectors
     angle = np.arcsin(np.clip(sinAngle, -1.0, 1.0))
 
-    #print("The angle between the camera and the projector is:")
-    #print(angle)
     # calculate the 2D rotation matrix from this angle
     rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-    return angle
 
+    return angle
 
 
 if __name__ == '__main__':
@@ -398,14 +390,16 @@ if __name__ == '__main__':
         smoothenCenterMotion(updatedPoint, DELTA_T)
 
         # rotate the shuttle as the camera does
-        rows, cols, w = shuttleIcon.shape
+        # first though, get a copy
+        toBeRotatedShuttle = shuttleIcon.copy()
+        rows, cols, w = toBeRotatedShuttle.shape
         angle = get_camera_rotation(smoothenedMatrix)
-        angleInDegrees = round(math.degrees(math.asin(angle)),2) # convert radian to degrees
-        M = cv2.getRotationMatrix2D((cols / 2, rows / 2), angleInDegrees, 1) 
-        shuttleIcon = cv2.warpAffine(shuttleIcon, M, (cols, rows))
+        angleInDegrees = round(math.degrees(math.asin(angle)), 2)  # convert radian to degrees
+        rotationMatrix = cv2.getRotationMatrix2D((cols / 2, rows / 2), angleInDegrees, 1)
+        toBeRotatedShuttle = cv2.warpAffine(toBeRotatedShuttle, rotationMatrix, (cols, rows), cv2.INTER_LANCZOS4)
 
         # Overlay transparent images at desired postion(x,y) and Scale.
-        result = transparentOverlay(processedImage, shuttleIcon, tuple(trackedCenterPoint), 0.7)
+        result = transparentOverlay(processedImage, toBeRotatedShuttle, tuple(trackedCenterPoint), 0.7)
 
         # Display the resulting projector image with a dot for the camera location
         cv2.imshow('Projector', processedImage)
