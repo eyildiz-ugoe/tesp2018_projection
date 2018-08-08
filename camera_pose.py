@@ -5,6 +5,8 @@ from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
 import xml.etree.ElementTree as ET
+
+from matplotlib.pyplot import over
 from pygame import mixer # Load the required library
 
 # for the sound stuff
@@ -15,8 +17,8 @@ projectedImageHeight = 350
 projectedImageWidth = 612
 MIN_MATCH_COUNT = 6
 MAX_MATCH_COUNT = 20
-CAM_WIDTH = 1280
-CAM_HEIGHT = 960
+CAM_WIDTH = 1600
+CAM_HEIGHT = 896
 MATRIX_SMOOTHENING_FACTOR = 0.2
 DELTA_T = 1 # time interval
 trackedCenterPoint = [0, 0]
@@ -27,7 +29,8 @@ smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 planets = stars = planet_list = []
 
 # Just using this dummy image for testing purposes
-imageToBeProjected = 'solar_system.jpg'
+imageToBeProjected = 'solar_system.png'
+shuttleToBeDrawn = 'shuttleIcon.png'
 
 # marker stuff
 marker_file_name = ["markers/marker_one_small.png","markers/marker_two_small.png","markers/marker_three_small.png","markers/marker_four_small.png"]
@@ -145,7 +148,7 @@ def init_webcam(mirror=False):
         camera_height,camera_width,d = camera_image.shape
     except:
         print("No external camera found, attempting to default to  internal camera")
-        cam = cv2.VideoCapture(0)
+        cam = cv2.VideoCapture(1)
         ret_val, camera_image = cam.read()
         if len(camera_image) == 0:
             raise
@@ -246,6 +249,23 @@ def smoothenCenterMotion(measured_position, delta_t):
         trackedCenterPoint[i] = new_point[i]
 
 
+# function to overlay a transparent image on background.
+def transparentOverlay(backgroundImage, overlayImage, pos=(0, 0), scale=1):
+    overlayImage = cv2.resize(overlayImage, (0, 0), fx=scale, fy=scale)
+    h, w, _ = overlayImage.shape  # Size of foreground
+    rows, cols, _ = backgroundImage.shape  # Size of background Image
+    y, x = pos[0], pos[1]  # Position of foreground/overlayImage image
+
+    # loop over all pixels and apply the blending equation
+    for i in range(h):
+        for j in range(w):
+            if x + i >= rows or y + j >= cols:
+                continue
+            alpha = float(overlayImage[i][j][3] / 255.0)  # read the alpha channel
+            backgroundImage[x + i][y + j] = alpha * overlayImage[i][j][:3] + (1 - alpha) * backgroundImage[x + i][y + j]
+    return backgroundImage
+
+
 if __name__ == '__main__':
 
     # play the background sound
@@ -283,6 +303,7 @@ if __name__ == '__main__':
 
     # Load the image that is going to be projected
     projectionImage = cv2.imread(imageToBeProjected)
+    shuttleIcon = cv2.imread(shuttleToBeDrawn, cv2.IMREAD_UNCHANGED) # read with the alpha channel
 
     # Draw markers on the image
     for marker_index, cp in enumerate(marker_points):
@@ -342,8 +363,8 @@ if __name__ == '__main__':
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
 
-        # draw a circle on the image
-        cv2.circle(processedImage, tuple(trackedCenterPoint), 5, (0, 0, 255), thickness=1, lineType=8)  # draw it
+        # Overlay transparent images at desired postion(x,y) and Scale.
+        result = transparentOverlay(processedImage, shuttleIcon, tuple(trackedCenterPoint), 0.7)
 
         # Display the resulting projector image with a dot for the camera location
         cv2.imshow('Projector', processedImage)
