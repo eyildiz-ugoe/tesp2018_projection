@@ -9,6 +9,7 @@
         <item name="Compounds Found">H, HE</item>
 		<item name="Orbiting Time">0</item>
         <item name="Day Time">25</item>
+		<item name="Surface temperature">5527</item>
 	</star>
 </stars>
 <planets>  
@@ -21,6 +22,7 @@
         <item name="Compoundss Found">Na, Mg, O, H, P, Ca, Fe, Al</item>
 		<item name="Orbiting Time">88</item>
         <item name="Day Time">4222.6</item>
+		<item name="Surface temperature">179</item>
     </planet>
     <planet>
         <item name="Name">Venus</item>
@@ -31,6 +33,7 @@
         <item name="Compounds Found">CO2, N2, SO2</item>
 		<item name="Orbiting Time">224.7</item>
         <item name="Day Time">2802.2</item>
+		<item name="Surface temperature">464</item>
     </planet>
     <planet>
         <item name="Name">Earth</item>
@@ -41,6 +44,7 @@
         <item name="Compounds Found">N2, O2, Ar , CO2</item>
 		<item name="Orbiting Time">365.2</item>
         <item name="Day Time">24</item>
+		<item name="Surface temperature">15</item>
     </planet>
     <planet>
         <item name="Name">Mars</item>
@@ -51,6 +55,7 @@
         <item name="Compounds Found">CO2, N2, Ar, O2</item>
 		<item name="Orbiting Time">687</item>
         <item name="Day Time">24.7</item>
+		<item name="Surface temperature">-63</item>
     </planet>
     <planet>
         <item name="Name">Jupiter</item>
@@ -61,6 +66,7 @@
         <item name="Compounds Found">H2, He, CH4, NH3</item>
 		<item name="Orbiting Time">4331</item>
         <item name="Day Time">9.9</item>
+		<item name="Surface temperature">-121</item>
     </planet>
     <planet>
         <item name="Name">Saturn</item>
@@ -71,6 +77,7 @@
         <item name="Compounds Found">H2, He, CH4, NH3</item>
 		<item name="Orbiting Time">10,747</item>
         <item name="Day Time">10.7</item>
+		<item name="Surface temperature">-190</item>
     </planet>
     <planet>
         <item name="Name">Uranus</item>
@@ -81,6 +88,7 @@
         <item name="Compounds Found">H2, He, CH4, HD</item>
 		<item name="Orbiting Time">30,589</item>
         <item name="Day Time">17.2</item>
+		<item name="Surface temperature">-205</item>
     </planet>
     <planet>
         <item name="Name">Neptune</item>
@@ -91,6 +99,7 @@
         <item name="Compounds Found">H2, He, CH4, HD</item>
 		<item name="Orbiting Time">59,800</item>
         <item name="Day Time">16.1</item>
+		<item name="Surface temperature">-220</item>
     </planet>
 </planets>  
 </celestialBodies>
