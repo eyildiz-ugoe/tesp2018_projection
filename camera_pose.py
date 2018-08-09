@@ -5,13 +5,15 @@ import math
 from playsound import playsound
 import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
+from PIL import Image
+from PIL import ImageFont, ImageDraw
 
 # for the sound stuff
 pygame.mixer.init()
 
 # Settings
-projectedImageHeight = 350
-projectedImageWidth = 612
+projectedImageHeight = 1080
+projectedImageWidth = 1920
 MIN_MATCH_COUNT = 6
 MAX_MATCH_COUNT = 20
 CAM_WIDTH = 1600
@@ -26,7 +28,7 @@ smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 planets = stars = planet_list = []
 
 # Just using this dummy image for testing purposes
-imageToBeProjected = 'solar_system.png'
+imageToBeProjected = 'blender/textures/Stars.png'
 shuttleToBeDrawn = 'shuttleIcon.png'
 
 # marker stuff
@@ -73,59 +75,46 @@ def prepare_info(planet):
 
     return info
 
-# Keep this out for now. This event handler will be used when the animation part is integrated.
-# The main purpose of this is to find out when the camera point is over a certain celestial body
-# It displays the information once it is the case.
+
+def displayInfo(closeUpImage, info):
+
+    # location in the closeUpImage to display the info, fixed locations
+    x = 500
+    y = 800
+
+    # get the font
+    fontsize = 10
+    font = ImageFont.truetype("spacefont.ttf", fontsize)
+
+    # load the image to PIL format
+    img_pil = Image.fromarray(closeUpImage)
+
+    # draw the font
+    draw = ImageDraw.Draw(img_pil)
+    displayingOffset = 50  # how far should the information be displayed (in pixels)
+    draw.text((x + displayingOffset, y), info, font=font, fill=(0, 0, 255, 0))  # color BGR
+
+    # back to opencv format
+    closeUpImage = np.array(img_pil)
+
+    # add a line to the info
+    textOffset = 90  # enough long to cover the text body on X axis
+    cv2.line(closeUpImage, (x, y), (x + displayingOffset + textOffset, y), (0, 0, 255), 1)
+
+    # display it
+    cv2.imshow("Close Up", closeUpImage)
+
+    # play the info effect
+    playsound('sounds/info.wav')
+
 """
-def hover_and_display(event, x, y, flags, param):
-    # grab references to the global variables
-    global processedImage
+def recieveFromBlender():
 
-    #TODO: We need to get a new image frame every time the user clicks,
-    #TODO: otherwise we keep writing on the same image
-
-    # if the camera point is over the celestial body points
-    if event == cv2.EVENT_LBUTTONUP:
-
-        # display info
-        #TODO: Here we need to find out which planet is selected,
-        #TODO: by getting the coordinates from the image.
-        #TODO: However, we need to find a clever way, unlike what is shown below
-        if(x == 100 && y == 150):
-            planet = planet_list.find('Mercury')
-        elif(x == 200 && y == 250):
-            planet = planet_list.find('Venus')
-
-        # play the info effect
-        # playsound('sounds/info.wav')
-
-
-        # for the time being we only print the info of the sun, which is the 0th element
-        # once we figure out which celestial body is selected, we need to pass that specific planet with:
-        # info = prepare_info(planet)
-        info = prepare_info(planet_list[0]) # index 0 is the sun
-
-        # get the font
-        fontsize = 10
-        font = ImageFont.truetype("spacefont.ttf", fontsize)
-
-        # load the image to PIL format
-        img_pil = Image.fromarray(img)
-
-        # draw the font
-        draw = ImageDraw.Draw(img_pil)
-        clickingOffset = 50 # how far should the information be displayed (in pixels)
-        draw.text((x + clickingOffset, y), info, font=font, fill=(0,0,255,0)) # color BGR
-
-        # back to opencv format
-        processedImage = np.array(img_pil)
-
-        # add a line to the info
-        textOffset = 90 # enough long to cover the text body on X axis
-        cv2.line(processedImage, (x, y), (x+clickingOffset + textOffset, y), (0, 0, 255), 1)
-
-        # display it
-        cv2.imshow("Projector", processedImage)
+    planetName, closeupImage = pipe.received()
+    if not planetName == []: # if whatever received was not empty or nonsense
+        any(planet for planet in planet_list if planet.planetName == planetName) # if that planet is in the list
+        info = prepare_info(planet_list[planetName]) # prepare its info
+        displayInfo(closeupImage, info)  # display it
 """
 
 def init_webcam(mirror=False):
@@ -343,7 +332,8 @@ if __name__ == '__main__':
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
     # Create an opencv window to display the projection onto
-    cv2.namedWindow("Projector", cv2.WINDOW_NORMAL)
+    cv2.namedWindow("Projector", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Projector", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     cv2.imshow('Projector', projectionImage)
     cv2.namedWindow("Debug", cv2.WINDOW_NORMAL)
 
@@ -388,6 +378,9 @@ if __name__ == '__main__':
 
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
+
+        # send the point to the Blender side
+        #sendToBlender(updatedPoint)
 
         # rotate the shuttle as the camera does
         # first though, get a copy
