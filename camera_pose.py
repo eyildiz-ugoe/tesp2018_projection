@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 from PIL import Image
 from PIL import ImageFont, ImageDraw
+import glob
 
 # for the sound stuff
 pygame.mixer.init()
@@ -28,11 +29,11 @@ smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 planets = stars = planet_list = []
 
 # Just using this dummy image for testing purposes
-imageToBeProjected = 'blender/textures/Stars.png'
+imageToBeProjected = 'solar_system2.png'
 shuttleToBeDrawn = 'shuttleIcon.png'
 
 # marker stuff
-marker_file_name = ["markers/marker_one_small.png","markers/marker_two_small.png","markers/marker_three_small.png","markers/marker_four_small.png"]
+marker_file_name = ["markers/marker_one_small.png", "markers/marker_two_small.png", "markers/marker_three_small.png", "markers/marker_four_small.png"]
 marker_points = [[0, 0], [0, projectedImageHeight - 100], [projectedImageWidth - 100, 0], [projectedImageWidth - 100, projectedImageHeight - 100]]
 
 
@@ -75,7 +76,7 @@ def prepare_info(planet):
 
     return info
 
-
+"""
 def displayInfo(closeUpImage, info):
 
     # location in the closeUpImage to display the info, fixed locations
@@ -107,7 +108,7 @@ def displayInfo(closeUpImage, info):
     # play the info effect
     playsound('sounds/info.wav')
 
-"""
+
 def recieveFromBlender():
 
     planetName, closeupImage = pipe.received()
@@ -116,6 +117,23 @@ def recieveFromBlender():
         info = prepare_info(planet_list[planetName]) # prepare its info
         displayInfo(closeupImage, info)  # display it
 """
+
+
+def getPlanetPixelLocations(backgroundImage, templates):
+
+    # work with a copy
+    backgroundImage_Gray = cv2.cvtColor(backgroundImage.copy(), cv2.COLOR_BGR2GRAY)
+
+    # Apply template Matching
+    # loop over the list of templates and draw bounding boxes around them in the image
+    for i in range(len(templates)):
+        w, h = templates[i].shape[::-1]
+        res = cv2.matchTemplate(backgroundImage_Gray, templates[i], cv2.TM_SQDIFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+        top_left = min_loc
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+        cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2)
+
 
 def init_webcam(mirror=False):
     cam = []
@@ -282,6 +300,14 @@ def get_camera_rotation(homographyMatrix):
 
 if __name__ == '__main__':
 
+    # for template matching and finding their pixels in the image
+    planet_templates = [cv2.imread(file, cv2.IMREAD_GRAYSCALE) for file in glob.glob("templates/*.png")]
+
+    # check if templates are loaded
+    if len(planet_templates) == 0:
+        print("Planet templates could not get loaded. Please check the paths.")
+        exit()
+
     # play the background sound
     mixer.music.load('sounds/background.mp3')
     mixer.music.play(-1)
@@ -305,10 +331,7 @@ if __name__ == '__main__':
                     Planet(star[0].text, star[1].text, star[2].text, star[3].text, star[4].text, star[5].text,
                            star[6].text, star[7].text))
         else:
-            print("Nothing")
-
-    #TODO: Leave it like this for now. Comment it in once the animation part is integrated.
-    #cv2.setMouseCallback("Projector", hover_and_display)
+            print("Nothing was read from the XML.")
 
     # Set up the camera
     cam, camera_height, camera_width = init_webcam()
@@ -318,6 +341,9 @@ if __name__ == '__main__':
     # Load the image that is going to be projected
     projectionImage = cv2.imread(imageToBeProjected)
     shuttleIcon = cv2.imread(shuttleToBeDrawn, cv2.IMREAD_UNCHANGED) # read with the alpha channel
+
+    # find the planets
+    getPlanetPixelLocations(projectionImage, planet_templates)
 
     # Draw markers on the image
     for marker_index, cp in enumerate(marker_points):
@@ -379,8 +405,9 @@ if __name__ == '__main__':
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
 
-        # send the point to the Blender side
-        #sendToBlender(updatedPoint)
+        # check if we are on any celestial body
+        #if checkPositionOfShuttle(updatedPoint):
+        #    displayInfo()
 
         # rotate the shuttle as the camera does
         # first though, get a copy
