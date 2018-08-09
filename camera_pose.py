@@ -8,6 +8,7 @@ from pygame import mixer # Load the required library
 from PIL import Image
 from PIL import ImageFont, ImageDraw
 import glob
+from collections import OrderedDict
 
 # for the sound stuff
 pygame.mixer.init()
@@ -27,9 +28,6 @@ smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
 # Global variable to hold all celestial bodies
 planets = stars = planet_list = []
-
-# containers to hold planet locations
-sunLocation = mercuryLocation = venusLocation = earthLocation = marsLocation = jupiterLocation = saturnLocation = uranusLocation = neptuneLocation = []
 
 # images to be loaded
 imageToBeProjected = 'solar_system2.png'
@@ -101,46 +99,6 @@ def prepare_info(planet):
 
     return info
 
-"""
-def displayInfo(info):
-
-    # create a new image of the info screen
-    blank_image = np.zeros((height, width, 3), np.uint8)
-
-    # add the planet
-
-
-    # add the font starting from where the planet image ends
-
-
-
-
-
-    # get the font
-    fontsize = 10
-    font = ImageFont.truetype("spacefont.ttf", fontsize)
-
-    # load the image to PIL format
-    img_pil = Image.fromarray(closeUpImage)
-
-    # draw the font
-    draw = ImageDraw.Draw(img_pil)
-    displayingOffset = 50  # how far should the information be displayed (in pixels)
-    draw.text((x + displayingOffset, y), info, font=font, fill=(0, 0, 255, 0))  # color BGR
-
-    # back to opencv format
-    closeUpImage = np.array(img_pil)
-
-    # add a line to the info
-    textOffset = 90  # enough long to cover the text body on X axis
-    cv2.line(closeUpImage, (x, y), (x + displayingOffset + textOffset, y), (0, 0, 255), 1)
-
-    # display it
-    cv2.imshow("Close Up", closeUpImage)
-
-    # play the info effect
-    playsound('sounds/info.wav')
-"""
 
 def getPlanetPixelLocations(backgroundImage, templates):
 
@@ -161,10 +119,10 @@ def getPlanetPixelLocations(backgroundImage, templates):
         top_left = min_loc
         bottom_right = (top_left[0] + w, top_left[1] + h)
         cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2)
-        planetDict = {
-            'name': name,
-            'tl,br': (top_left, bottom_right)
-        }
+        planetDict = OrderedDict()
+        planetDict['name'] = name
+        planetDict['tl-br'] = (top_left, bottom_right)
+
         planetRects.append(planetDict)
         #planetRects.append((top_left,bottom_right))
 
@@ -461,7 +419,41 @@ if __name__ == '__main__':
             tl = pos[0]
             br = pos[1]
             if isInsideRect(updatedPoint, tl, br):  # if we are inside the boundaries of any
-                print("HIT THE PLANET OF:", name)  # give the information
+                #print("HIT THE PLANET OF:", name)
+                tmp = name.replace('templates/', '')  # remove the path-related part of the string
+                planetname = tmp.replace('.png', '')  # remove the file-related part of the string
+                # loop over the objects of planets
+                for planet in planet_list:
+                    if planet.name == planetname:  # find the one that matches the one we landed
+
+                        info = prepare_info(planet)  # prepare the information of the planet we land
+
+                        # get the shuttle's position
+                        x = int(updatedPoint[0])
+                        y = int(updatedPoint[1])
+
+                        # get the font
+                        fontsize = 20
+                        font = ImageFont.truetype("spacefont.ttf", fontsize)
+
+                        # load the image to PIL format
+                        img_pil = Image.fromarray(processedImage)
+
+                        # draw the font
+                        draw = ImageDraw.Draw(img_pil)
+                        displayingOffset = 50  # how far should the information be displayed (in pixels)
+                        draw.text((displayingOffset, y + displayingOffset), info, font=font, fill=(0, 255, 255, 0))  # color BGR
+
+                        # back to opencv format
+                        processedImage = np.array(img_pil)
+
+                        # add a line to the info
+                        textOffset = 90  # enough long to cover the text body on X axis
+                        cv2.line(processedImage, (x, y), (x, y + displayingOffset + textOffset), (0, 255, 255), 1)
+
+                        # play the info effect
+                        #playsound('sounds/info.wav')
+                        break
 
         # rotate the shuttle as the camera does
         # first though, get a copy
