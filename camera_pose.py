@@ -296,6 +296,10 @@ def isInsideRect(currentPos, tl, br):
     return currentPos[0] <= br[0] and currentPos[0] >= tl[0] and currentPos[1] <= br[1] and currentPos[1] >= tl[1]
 
 
+# in order to avoid divide by zero or infinity errors
+def clean_asin(asin_angle_in_radians):
+    return min(1, max(asin_angle_in_radians, -1))
+
 if __name__ == '__main__':
 
     # for template matching and finding their pixels in the image
@@ -453,11 +457,11 @@ if __name__ == '__main__':
         toBeRotatedShuttle = shuttleIcon.copy()
         rows, cols, w = toBeRotatedShuttle.shape
         angle = get_camera_rotation(smoothenedMatrix)
-        angleInDegrees = round(math.degrees(math.asin(angle)), 2)  # convert radian to degrees
+        angleInDegrees = round(math.degrees(clean_asin(angle)), 2)  # convert radian to degrees
         rotationMatrix = cv2.getRotationMatrix2D((cols / 2, rows / 2), angleInDegrees, 1)
         toBeRotatedShuttle = cv2.warpAffine(toBeRotatedShuttle, rotationMatrix, (cols, rows), cv2.INTER_LANCZOS4)
 
-        # Overlay transparent images at desired postion(x,y) and Scale.
+        # Overlay transparent images at desired position(x,y) and scale.
         result = transparentOverlay(processedImage, toBeRotatedShuttle, tuple(trackedCenterPoint), 0.7)
 
         # Display the resulting projector image with a dot for the camera location
