@@ -2,7 +2,6 @@ import cv2
 import pygame
 import numpy as np
 import math
-from playsound import playsound
 import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 from PIL import Image
@@ -20,6 +19,8 @@ MIN_MATCH_COUNT = 6
 MAX_MATCH_COUNT = 20
 CAM_WIDTH = 1600
 CAM_HEIGHT = 896
+DISPLAY_INFO_LOCATION_X = projectedImageWidth * 0.2
+DISPLAY_INFO_LOCATION_Y = projectedImageHeight * 0.7
 MATRIX_SMOOTHENING_FACTOR = 0.2
 DELTA_T = 1 # time interval
 trackedCenterPoint = [0, 0]
@@ -86,7 +87,7 @@ class Planet(object):
 # Text to display about the celestial body
 def prepare_info(planet):
 
-    info = "-Celestial Body Info" \
+    info = "----------Celestial Body Info" \
            "\n--Name: " + str(planet.name) + \
            "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " light years" + \
            "\n--Size: " + str(planet.size) + " x of Earth" + \
@@ -110,7 +111,6 @@ def getPlanetPixelLocations(backgroundImage, templates):
 
     # Apply template Matching
     # loop over the list of templates and draw bounding boxes around them in the image
-
     for i in range(len(templates)):
         w, h = templates[i].img.shape[::-1]
         name = str(templates[i])
@@ -118,13 +118,12 @@ def getPlanetPixelLocations(backgroundImage, templates):
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
         top_left = min_loc
         bottom_right = (top_left[0] + w, top_left[1] + h)
-        cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2)
+        #cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2) # comment out to see the bounding boxes
         planetDict = OrderedDict()
         planetDict['name'] = name
         planetDict['tl-br'] = (top_left, bottom_right)
 
         planetRects.append(planetDict)
-        #planetRects.append((top_left,bottom_right))
 
     return planetRects
 
@@ -283,17 +282,19 @@ def get_camera_rotation(homographyMatrix):
     # Change the sign of the angle if the rocket is turning the opposite way to desired
     #sine of the angle
     sinAngle = camera_vector[0] * proj_vector[1] - camera_vector[1] * proj_vector[0]
+
     #angle between the vectors
     angle = np.arcsin(np.clip(sinAngle, -1.0, 1.0))
 
     # calculate the 2D rotation matrix from this angle
-    rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    #rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
     return angle
 
-
+# used to figure if we landed on the planet by means of pixels
 def isInsideRect(currentPos, tl, br):
     return currentPos[0] <= br[0] and currentPos[0] >= tl[0] and currentPos[1] <= br[1] and currentPos[1] >= tl[1]
+
 
 if __name__ == '__main__':
 
@@ -419,14 +420,14 @@ if __name__ == '__main__':
             tl = pos[0]
             br = pos[1]
             if isInsideRect(updatedPoint, tl, br):  # if we are inside the boundaries of any
-                #print("HIT THE PLANET OF:", name)
                 tmp = name.replace('templates/', '')  # remove the path-related part of the string
                 planetname = tmp.replace('.png', '')  # remove the file-related part of the string
                 # loop over the objects of planets
                 for planet in planet_list:
                     if planet.name == planetname:  # find the one that matches the one we landed
 
-                        info = prepare_info(planet)  # prepare the information of the planet we land
+                        # prepare the information of the planet we land
+                        info = prepare_info(planet)
 
                         # get the shuttle's position
                         x = int(updatedPoint[0])
@@ -439,20 +440,12 @@ if __name__ == '__main__':
                         # load the image to PIL format
                         img_pil = Image.fromarray(processedImage)
 
-                        # draw the font
+                        # draw the text
                         draw = ImageDraw.Draw(img_pil)
-                        displayingOffset = 50  # how far should the information be displayed (in pixels)
-                        draw.text((displayingOffset, y + displayingOffset), info, font=font, fill=(0, 255, 255, 0))  # color BGR
+                        draw.text((DISPLAY_INFO_LOCATION_X, DISPLAY_INFO_LOCATION_Y), info, font=font, fill=(0, 255, 255, 0))  # color BGR
 
                         # back to opencv format
                         processedImage = np.array(img_pil)
-
-                        # add a line to the info
-                        textOffset = 90  # enough long to cover the text body on X axis
-                        cv2.line(processedImage, (x, y), (x, y + displayingOffset + textOffset), (0, 255, 255), 1)
-
-                        # play the info effect
-                        #playsound('sounds/info.wav')
                         break
 
         # rotate the shuttle as the camera does
