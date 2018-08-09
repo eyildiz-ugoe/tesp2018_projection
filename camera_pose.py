@@ -2,7 +2,7 @@ import cv2
 import pygame
 import numpy as np
 import math
-import imutils
+from playsound import playsound
 import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 
@@ -97,8 +97,7 @@ def hover_and_display(event, x, y, flags, param):
             planet = planet_list.find('Venus')
 
         # play the info effect
-        #click_effect = pygame.mixer.Sound('sounds/info.wav')
-        #click_effect.play()
+        # playsound('sounds/info.wav')
 
 
         # for the time being we only print the info of the sun, which is the 0th element
