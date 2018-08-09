@@ -28,22 +28,44 @@ smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 # Global variable to hold all celestial bodies
 planets = stars = planet_list = []
 
-# Just using this dummy image for testing purposes
+# containers to hold planet locations
+sunLocation = mercuryLocation = venusLocation = earthLocation = marsLocation = jupiterLocation = saturnLocation = uranusLocation = neptuneLocation = []
+
+# images to be loaded
 imageToBeProjected = 'solar_system2.png'
 shuttleToBeDrawn = 'shuttleIcon.png'
+sun = 'planets/sun.jpg'
+mercury = 'planets/mercury.jpg'
+venus = 'planets/venus.jpg'
+earth = 'planets/earth.jpg'
+mars = 'planets/mars.jpg'
+jupiter = 'planets/jupiter.jpg'
+saturn = 'planets/saturn.jpg'
+uranus = 'planets/uranus.jpg'
+neptune = 'planets/neptune.jpg'
 
 # marker stuff
 marker_file_name = ["markers/marker_one_small.png", "markers/marker_two_small.png", "markers/marker_three_small.png", "markers/marker_four_small.png"]
 marker_points = [[0, 0], [0, projectedImageHeight - 100], [projectedImageWidth - 100, 0], [projectedImageWidth - 100, projectedImageHeight - 100]]
 
 
+"""Specific class which is used to read template images with filenames associated with it"""
+class PlanetTemplateImage:
+    def __init__(self, img_name):
+        self.img = cv2.imread(img_name, 0)
+        self.__name = img_name
+
+    def __str__(self):
+        return self.__name
+
+
 """
 Planet class to make things easier to handle.
-
 """
 class Planet(object):
     name = ""
     distanceFromEarth = 0 #in lightyears
+    surfaceTemperature = 0 #in celcius
     size = 0 # multiplier only. x times of earth's
     gravity = 0 # multiplier only. x times of earth's
     moons = [] # only the names
@@ -51,7 +73,7 @@ class Planet(object):
     orbitTime = 0 # in days (earth)
     dayTime = 0 # in days (earth)
 
-    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime):
+    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime, surfaceTemperature):
         self.name = name
         self.distanceFromSun = distanceFromEarth
         self.size = size
@@ -60,28 +82,39 @@ class Planet(object):
         self.compoundFound = compoundFound
         self.orbitTime = orbitTime
         self.dayTime = dayTime
+        self.surfaceTemperature = surfaceTemperature
+
 
 # Text to display about the celestial body
 def prepare_info(planet):
 
     info = "-Celestial Body Info" \
            "\n--Name: " + str(planet.name) + \
-           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " lightyears" + \
+           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " light years" + \
            "\n--Size: " + str(planet.size) + " x of Earth" + \
            "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
            "\n--Moons: " + str(planet.moons) + \
            "\n--Compounds Found: " + str(planet.compoundFound) + \
            "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" + \
-           "\n--Day Time: " + str(planet.dayTime) + " Earth days"
+           "\n--Day Time: " + str(planet.dayTime) + " Earth days" + \
+           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " C"
 
     return info
 
 """
-def displayInfo(closeUpImage, info):
+def displayInfo(info):
 
-    # location in the closeUpImage to display the info, fixed locations
-    x = 500
-    y = 800
+    # create a new image of the info screen
+    blank_image = np.zeros((height, width, 3), np.uint8)
+
+    # add the planet
+
+
+    # add the font starting from where the planet image ends
+
+
+
+
 
     # get the font
     fontsize = 10
@@ -107,32 +140,35 @@ def displayInfo(closeUpImage, info):
 
     # play the info effect
     playsound('sounds/info.wav')
-
-
-def recieveFromBlender():
-
-    planetName, closeupImage = pipe.received()
-    if not planetName == []: # if whatever received was not empty or nonsense
-        any(planet for planet in planet_list if planet.planetName == planetName) # if that planet is in the list
-        info = prepare_info(planet_list[planetName]) # prepare its info
-        displayInfo(closeupImage, info)  # display it
 """
 
-
 def getPlanetPixelLocations(backgroundImage, templates):
+
+    # container to carry the virtual planet boundries
+    planetRects = []
 
     # work with a copy
     backgroundImage_Gray = cv2.cvtColor(backgroundImage.copy(), cv2.COLOR_BGR2GRAY)
 
     # Apply template Matching
     # loop over the list of templates and draw bounding boxes around them in the image
+
     for i in range(len(templates)):
-        w, h = templates[i].shape[::-1]
-        res = cv2.matchTemplate(backgroundImage_Gray, templates[i], cv2.TM_SQDIFF_NORMED)
+        w, h = templates[i].img.shape[::-1]
+        name = str(templates[i])
+        res = cv2.matchTemplate(backgroundImage_Gray, templates[i].img, cv2.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
         top_left = min_loc
         bottom_right = (top_left[0] + w, top_left[1] + h)
         cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2)
+        planetDict = {
+            'name': name,
+            'tl,br': (top_left, bottom_right)
+        }
+        planetRects.append(planetDict)
+        #planetRects.append((top_left,bottom_right))
+
+    return planetRects
 
 
 def init_webcam(mirror=False):
@@ -298,14 +334,28 @@ def get_camera_rotation(homographyMatrix):
     return angle
 
 
+def isInsideRect(currentPos, tl, br):
+    return currentPos[0] <= br[0] and currentPos[0] >= tl[0] and currentPos[1] <= br[1] and currentPos[1] >= tl[1]
+
 if __name__ == '__main__':
 
     # for template matching and finding their pixels in the image
-    planet_templates = [cv2.imread(file, cv2.IMREAD_GRAYSCALE) for file in glob.glob("templates/*.png")]
+    planet_templates = []
+    for file in glob.glob("templates/*.png"):
+        image = PlanetTemplateImage(file)
+        planet_templates.append(image)
 
     # check if templates are loaded
     if len(planet_templates) == 0:
         print("Planet templates could not get loaded. Please check the paths.")
+        exit()
+
+    # for displaying info
+    planet_images = [cv2.imread(file) for file in glob.glob("images/*.jpg")]
+
+    # check if planets are loaded
+    if len(planet_images) == 0:
+        print("Planet images could not get loaded. Please check the paths.")
         exit()
 
     # play the background sound
@@ -324,12 +374,12 @@ if __name__ == '__main__':
             for planet in planets:
                 planet_list.append(
                     Planet(planet[0].text, planet[1].text, planet[2].text, planet[3].text, planet[4].text,
-                           planet[5].text, planet[6].text, planet[7].text))
+                           planet[5].text, planet[6].text, planet[7].text, planet[8].text))
         elif stars:  # since there is only one star (sun), we just add it into the list of planets
             for star in stars:
                 planet_list.append(
                     Planet(star[0].text, star[1].text, star[2].text, star[3].text, star[4].text, star[5].text,
-                           star[6].text, star[7].text))
+                           star[6].text, star[7].text, star[8].text))
         else:
             print("Nothing was read from the XML.")
 
@@ -342,8 +392,8 @@ if __name__ == '__main__':
     projectionImage = cv2.imread(imageToBeProjected)
     shuttleIcon = cv2.imread(shuttleToBeDrawn, cv2.IMREAD_UNCHANGED) # read with the alpha channel
 
-    # find the planets
-    getPlanetPixelLocations(projectionImage, planet_templates)
+    # get the planet locations
+    planetLocations = getPlanetPixelLocations(projectionImage, planet_templates)
 
     # Draw markers on the image
     for marker_index, cp in enumerate(marker_points):
@@ -405,9 +455,13 @@ if __name__ == '__main__':
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
 
-        # check if we are on any celestial body
-        #if checkPositionOfShuttle(updatedPoint):
-        #    displayInfo()
+        # get the planet names and respective locations
+        for d in planetLocations:
+            name, pos = d.values()
+            tl = pos[0]
+            br = pos[1]
+            if isInsideRect(updatedPoint, tl, br):  # if we are inside the boundaries of any
+                print("HIT THE PLANET OF:", name)  # give the information
 
         # rotate the shuttle as the camera does
         # first though, get a copy
