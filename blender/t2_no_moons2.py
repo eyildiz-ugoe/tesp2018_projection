@@ -2,17 +2,24 @@ import bpy
 import bmesh
 import mathutils
 
+import sys, os
 import threading
 import math
 import time
 
+#TEXTURES_PATH = '/mnt/NewVolume/studia/s10/TESP/tesp2018_projection/textures/'
+FILE_PATH = bpy.context.space_data.text.filepath[:-15]
+TEXTURES_PATH =  FILE_PATH+'/textures/'
+#TEXTURES_PATH =os.path.dirname(os.path.abspath(__file__))+'/textures/'
+
 SCALE_CENTER = .000003
 SCALE_DIAM=.0001
 SCALE_DIST = .00000001
-SUN = ['Sun',1390000,1.989*math.pow(10,30),0,0, 0]
+SUN = ['S_Sun',1390000,1.989*math.pow(10,30),0,0, 0]
 PLANETS=['Mercury','Venus','Earth', 'Mars', 'Jupiter','Saturn','Uranus', 'Neptune']
 DIAMETERS = [4879,12104,12756,6792,142984,120536,51118,49528]
-DIAMETERS[4:] = [x*0.12  for x in DIAMETERS[4:]]
+DIAMETERS[4:6] = [x*0.12  for x in DIAMETERS[4:6]]
+DIAMETERS[6:] = [x*0.2  for x in DIAMETERS[6:]]
 
 #diameters = []
 MASSES = [0.330,4.87,5.97,0.642,1898,568,86.8,102]
@@ -80,6 +87,7 @@ class Center(object):
         prop.value = self.diameter
 
 
+
         # Construct the bmesh cube and assign it to the blender mesh.
         bm = bmesh.new()
         bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, diameter=self.diameter)
@@ -102,14 +110,73 @@ class Orbiter(Center):
         #orbit
         bpy.ops.mesh.primitive_circle_add(vertices = 128, radius = a)
 
-        o = bpy.context.active_object
-        o.select = True
-        new_mat = bpy.data.materials.new(name="a")
-        new_mat.diffuse_color = (0.8,0.8,0.0)
-        o.data.materials.append(new_mat)
+
 
 def create_system(center, orbiters):
- #if list == None:
+    #universe sphere
+    bpyscene = bpy.context.scene
+    # Create an empty mesh and the object.
+    mesh = bpy.data.meshes.new('uni')
+    basic_sphere = bpy.data.objects.new('uni', mesh)
+    bpyscene.objects.link(basic_sphere)
+    bpyscene.objects.active = basic_sphere
+    basic_sphere.select = True
+    # Construct the bmesh cube and assign it to the blender mesh.
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, diameter=300)
+    bmesh.ops.reverse_faces(bm, faces = bm.faces) #flip normals to have texture on the inside
+    bm.to_mesh(mesh)
+    bm.free()
+    bpy.ops.object.modifier_add(type='SUBSURF')
+    bpy.ops.object.shade_smooth()
+    realpath = TEXTURES_PATH+'Stars.jpg'
+
+    try:
+        img = bpy.data.images.load(realpath)
+    except:
+        raise NameError("Cannot load image %s" % realpath)
+    # Create image texture from image
+    cTex = bpy.data.textures.new('Stars' + "_texture", type = 'IMAGE')
+    cTex.image = img
+
+    mat = bpy.data.materials.new(name='Stars' + "_material")
+    mat.emit = 2.0
+    mat.diffuse_intensity = 1.0
+    mat.specular_intensity = 0.0
+    mat.game_settings.use_backface_culling = False
+    mtex = mat.texture_slots.add()
+    mtex.texture = cTex
+    mtex.texture_coords = 'OBJECT'
+    #mtex.texture_coords = 'ORCO'
+    #mtex.object = dummy_object
+    mtex.use_map_color_diffuse = True
+    mtex.use_map_color_emission = True
+    #mtex.emission_color_factor = 0.5
+    #mtex.use_map_density = True
+    mtex.mapping = 'SPHERE'#'FLAT'
+
+
+    basic_sphere.data.materials.append(mat)
+    basic_sphere.rotation_euler.x = math.radians(130)
+    basic_sphere.rotation_euler.y = math.radians(130)
+    basic_sphere.rotation_euler.z = math.radians(130)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    #if list == None:
     objects_list =[]
     e=0
     star = Center(*center,0)
@@ -147,9 +214,30 @@ def create_rotation(x, center):
     o = bpy.data.objects.new( "pivot_"+x.name, None )
     bpy.context.scene.objects.link( o )
     o.location.x += center.pos
+    o.rotation_mode='XYZ'
+    #o.rotation_euler = (math.radians(90), 0, 0)
     o.parent = center.blenderObj # parent pivot to center
+    #o.matrix_parent_inverse = center.blenderObj.matrix_world.inverted()
     x.blenderObj.parent = o #parent object to pivot
     empt.append(o)
+
+
+
+    #for cameras
+
+    o2 = bpy.data.objects.new( "empty_"+x.name, None )
+    bpy.context.scene.objects.link( o2 )
+    o2.location.x += x.pos -(x.diameter+3)
+    o2.location.y += 0
+    o2.location.z += 1
+    o2.rotation_mode='XYZ'
+    #o2.rotation_euler.x = math.radians(90)
+    o2.rotation_euler.y = math.radians(-90)
+    #o2.rotation_euler.z= math.radians(0)
+    #o.rotation_euler = (math.radians(90), 0, 0)
+    #o2.parent = o # parent pivot to center
+    #o.matrix_parent_inverse = center.blenderObj.matrix_world.inverted()
+    o2.parent = o #parent object to pivot
     return empt
 
 
@@ -178,7 +266,9 @@ def rotate(o, speeds):
     #bpy.ops.render.render(animation=True)
 
 def setupW():
-    text = bpy.data.texts.load('/mnt/NewVolume/studia/s10/TESP/blend/bgee.py')
+    bpy.context.scene.render.engine = 'BLENDER_GAME'
+
+    text = bpy.data.texts.load(FILE_PATH+'bgee.py')
 
     for area in bpy.context.screen.areas:
         if area.type == 'TEXT_EDITOR':
@@ -194,19 +284,130 @@ def setupW():
 
 
     bpyscene = bpy.context.scene
+    bpyscene.game_settings.material_mode = 'GLSL'
+    bpyscene.game_settings.use_glsl_shaders = False
 
     camera = bpyscene.objects["Camera"]
     camera.rotation_euler = (0, 0.0, 0)
     camera.location.x = 0.0
     camera.location.y = 0.0
-    camera.location.z = 115.0
-    bpy.data.cameras['Camera'].clip_end =500
+    camera.location.z = 173.0
+    #bpy.data.cameras['Camera'].clip_end =500
+    camera.data.clip_end =600
 
+
+    bpyscene.objects.active = camera
+    camera.select = True
+    bpy.ops.object.game_property_new()
+    prop = camera.game.properties[-1]
+    prop.name = 'SL'
+    prop = camera.game.properties[-1]
+    prop.value = 1
+
+
+
+
+
+    Lamp = bpyscene.objects['Lamp']
+    Lamp.rotation_euler = (0, 0.0, 0)
+    Lamp.location.x = 0.0
+    Lamp.location.y = 0.0
+    Lamp.location.z = 0.0
+    Lamp.data.energy = 10
+    Lamp.data.use_specular = False
+
+
+
+    #obj = bpy.context.object
+    sensors = camera.game.sensors
+    controllers = camera.game.controllers
+    #actuators = obj.game.actuators
+    bpy.ops.logic.sensor_add(type="ALWAYS", object=camera.name)
+    bpy.ops.logic.controller_add(type="PYTHON", object=camera.name)
+    #bpy.ops.logic.actuator_add(type="ACTION", object=obj.name)
+    sensor = sensors[-1]
+    controller = controllers[-1]
+    #actuator = actuators[-1]
+    sensor.link(controller)
+    sensor.use_pulse_true_level = True
+    controller.text = bpy.data.texts['bgee.py']
+    #actuator.link(controller)
+
+    '''
+    dummy_object = bpy.data.objects.new( 'DUMMY', None )
+    bpy.context.scene.objects.link( dummy_object )
+    dummy_object.rotation_mode='XYZ'
+    dummy_object.rotation_euler = (89.9, 0, 0)
+
+    return dummy_object
+    '''
+def make_texture(object,emit):
+    x = object.blenderObj
+    #bpy.context.scene.objects.active = x
+    #ob = bpy.context.active_object
+    #mat = bpy.data.materials.new(name=y.name + "_material")
+    '''
+    mat.diffuse_color = diffuse
+    mat.diffuse_shader = 'LAMBERT'
+    mat.diffuse_intensity = 1.0
+    mat.specular_color = specular
+    mat.specular_shader = 'COOKTORR'
+    mat.specular_intensity = 0.5
+    mat.alpha = alpha
+    mat.ambient = 1
+    '''
+
+    # Assign it to object
+    #if x.data.materials:
+        # assign to 1st material slot
+    #    x.data.materials[0] = mat
+    #else:
+        # no slots
+    #x.data.materials.append(mat)
+
+
+
+    #realpath = os.path.expanduser('/mnt/NewVolume/studia/s10/TESP/tesp2018_projection/'+y.name + '.jpg')
+    realpath = TEXTURES_PATH+object.name[2:] + '.jpg'
+
+    try:
+        img = bpy.data.images.load(realpath)
+    except:
+        raise NameError("Cannot load image %s" % realpath)
+    # Create image texture from image
+    cTex = bpy.data.textures.new(object.name[2:] + "_texture", type = 'IMAGE')
+    cTex.image = img
+
+    mat = bpy.data.materials.new(name=object.name[2:] + "_material")
+    mat.emit = emit
+    mat.diffuse_intensity = 1.0
+    mat.specular_intensity = 0.0
+    mtex = mat.texture_slots.add()
+    mtex.texture = cTex
+    mtex.texture_coords = 'OBJECT'
+    #mtex.object = dummy_object
+    mtex.use_map_color_diffuse = True
+    mtex.use_map_color_emission = True
+    mtex.emission_color_factor = 0.5
+    mtex.use_map_density = True
+    mtex.mapping = 'SPHERE'#'FLAT'
+
+    x.data.materials.append(mat)
+
+
+    #GameLogic.video.source = bge.texture.VideoFFmpeg(movie)
 
 def main():
     setupW()
     bpy.data.objects.remove(bpy.data.objects['Cube'],True)
     star, planetslist, empt = create_system(SUN, ALL_DATA)
+    star.blenderObj.rotation_euler = (math.radians(90), 0, 0)
+    #bpy.context.scene.objects.active = star.blenderObj
+    #star.blenderObj.select = True
+    #bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    make_texture(star,emit = 2.0)
+    for x in planetslist:
+        make_texture(x,emit = 0.0 )
     for idx, x in enumerate(planetslist):
         if SATELLITES[idx] == 0:
             continue
