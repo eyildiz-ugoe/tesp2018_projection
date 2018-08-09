@@ -2,6 +2,8 @@ import bge
 import math
 import time
 
+#storage = bge.logic.globalDict['Pipe']
+
 orbitalPeriod = [88.0,224.7,365.2,687.0,4331,10747,30589,59800]
 #orbitalPeriod = [88.0,224.7,365.2,687,433,1074,3058,5980]
 # = [int(x) for x in orbitalPeriod]
@@ -18,21 +20,70 @@ ORBITAL_PERIOD[4:] = [x*0.001  for x in ORBITAL_PERIOD[4:]]
 
 SLOW = 1
 
-
+def lel(w):
+    pass
 
 def setup():
-    cont = bge.logic.getCurrentController()
-    own = cont.owner
+    own = bge.logic.getCurrentController().owner
 
     if 'init' not in own: # Will only run once, or when the var gets removed
         own['init'] = True
-        #print('only once')
+        from multiprocessing import Process, Pipe
+        parent_pipe, child_pipe = Pipe()
+        proc = Process(target=lel, args=(child_pipe,))
+        proc.start()
         scene = bge.logic.getCurrentScene()
+        lamp = scene.objects['Lamp']
+        lamp['SL'] = 1
+        lamp['proc'] = proc
+        lamp['pipe'] = parent_pipe
+        #print('only once')
+        #scene = bge.logic.getCurrentScene()
+        #global TEST
+        #TEST="Gyvfvyfgvyfgv"
+        #print('first')
+        #for ob in scene.objects:
+        #    nn = ob.name
+        #    if 'P_' in nn and 'pivot' not in nn:
+        #        make_texture(ob)
 
-        for ob in scene.objects:
-            nn = ob.name
-            if 'P_' in nn and 'pivot' not in nn:
-                make_texture(ob)
+def mouse_hit_ray(mouse_x, mouse_y, property="",distance=200.0):
+    rend = bge.render
+    width = rend.getWindowWidth()
+    height = rend.getWindowHeight()
+    xx = int(width/2)
+    yy = int(height/2)
+    rend.setMousePosition( mouse_x, mouse_y)
+
+    scene = bge.logic.getCurrentScene()
+    camera = scene.active_camera
+    return_normal = 0
+    x_ray = 1
+    return_polygon = 0
+
+    #mouse_position = bge.logic.mouse.position
+    #print(mouse_position)
+    screen_vect = camera.getScreenVect(mouse_position[0],mouse_position[1])
+    screen_vect.negate()
+    target_position = camera.worldPosition + screen_vect
+    target_ray = camera.rayCast( target_position, camera, distance , property)
+
+    return target_ray
+
+def send_to(data):
+    scene = bge.logic.getCurrentScene()
+    lamp = scene.objects['Lamp']
+    lamp['pipe'].send(data)
+
+def receive_from():
+    scene = bge.logic.getCurrentScene()
+    lamp = scene.objects['Lamp']
+    try:
+        a= lamp['pipe'].recv()
+        return a
+    except:
+        return None
+
 
 def make_texture(obj):
     #for x in objects:
@@ -80,7 +131,7 @@ def follow(obj):
             print(obj.worldOrientation.to_euler())
             '''
             camera = scene.active_camera
-            print(camera.worldOrientation.to_euler())
+            #print(camera.worldOrientation.to_euler())
 
             #camera.setParent(ob)
             #cpos = ob.worldPosition
@@ -94,7 +145,7 @@ def follow(obj):
             #opos[1] = ob.worldPosition[1]-4
             #opos[2] = 1.5
             #camera.worldPosition = opos
-            print(camera.worldOrientation.to_euler())
+            #print(camera.worldOrientation.to_euler())
             #camera.setParent(ob)
             #camera.worldPosition = [obj.position[0]+2.5,obj.position[1]-4,1.5] # set camera position
             #camera.localPosition = [obj.position[0]+2.5,obj.position[1]-4,1.5] # set camera position
@@ -111,16 +162,20 @@ def follow(obj):
             #m[2] = math.radians(120)
             #camera.worldOrientation = m.to_matrix()
             camera.setParent(ob)
-            print(camera.worldOrientation.to_euler())
+            #print(camera.worldOrientation.to_euler())
             #camera.worldOrientation = [math.radians(80.0),  0.0, math.radians(71.0)]
 
             #camera.setParent(ob)
-
+            '''
             print(camera.position)
             print(camera.localOrientation.to_euler())
             print(camera.worldOrientation.to_euler())
             print("end1")
-            camera['SL'] = 0.00001
+            '''
+
+            scene = bge.logic.getCurrentScene()
+            lamp = scene.objects['Lamp']
+            lamp['SL'] = 0.00001
             #SLOW =0.01
 
             #camera.localOrientation = (math.radians(66),0-ori,math.radians(70)) # set camera orientation
@@ -143,7 +198,8 @@ def reset_pos():
 
         scene = bge.logic.getCurrentScene()
         camera = scene.active_camera
-        camera['SL'] = 1
+        lamp = scene.objects['Lamp']
+        lamp['SL'] = 1
         camera.removeParent()
         #camera.position = (70,-55,47) # set camera position
         camera.worldPosition = [70,-55,47] # set camera position
@@ -158,10 +214,13 @@ def reset_pos():
 
 def main():
 
-    #setup()
+    #global TEST
+    #print(TEST)
+    setup()
+
     scene = bge.logic.getCurrentScene()
-    camera = scene.active_camera
-    SLOW = camera['SL']
+    lamp = scene.objects['Lamp']
+    SLOW = lamp['SL']
 
 
     objL = []
@@ -219,6 +278,7 @@ def main():
 
     elif bge.logic.KX_INPUT_ACTIVE == keyboard.events[bge.events.DOWNARROWKEY]:
         reset_pos()
+        send_to('resetto')
     elif bge.logic.KX_INPUT_ACTIVE == keyboard.events[bge.events.LEFTARROWKEY]:
         bge.render.makeScreenshot('/mnt/NewVolume/studia/s10/TESP/blend/Screenshot#.jpg')
         dataL = []
@@ -232,6 +292,11 @@ def main():
             #elif 'S_' in nn and 'pivot' not in nn:
         print(dataL)
     else:
+        hit = mouse_hit_ray(1,1)
+        if hit[0] is None:
+            pass
+        else:
+            print(hit)
         pass
         #reset_pos()
 if __name__ == "__main__":
