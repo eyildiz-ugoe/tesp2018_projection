@@ -33,20 +33,17 @@ planets = stars = planet_list = []
 # images to be loaded
 imageToBeProjected = 'solar_system2.png'
 shuttleToBeDrawn = 'shuttleIcon.png'
-sun = 'planets/sun.jpg'
-mercury = 'planets/mercury.jpg'
-venus = 'planets/venus.jpg'
-earth = 'planets/earth.jpg'
-mars = 'planets/mars.jpg'
-jupiter = 'planets/jupiter.jpg'
-saturn = 'planets/saturn.jpg'
-uranus = 'planets/uranus.jpg'
-neptune = 'planets/neptune.jpg'
 
 # marker stuff
 marker_file_name = ["markers/marker_one_small.png", "markers/marker_two_small.png", "markers/marker_three_small.png", "markers/marker_four_small.png"]
 marker_points = [[0, 0], [0, projectedImageHeight - 100], [projectedImageWidth - 100, 0], [projectedImageWidth - 100, projectedImageHeight - 100]]
 
+# initialize the feature detector
+# we use orb, make it ready
+orb = cv2.ORB_create(nfeatures=500)
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+matches = []
+matchesMask = []
 
 """Specific class which is used to read template images with filenames associated with it"""
 class PlanetTemplateImage:
@@ -300,7 +297,8 @@ def isInsideRect(currentPos, tl, br):
 def clean_asin(asin_angle_in_radians):
     return min(1, max(asin_angle_in_radians, -1))
 
-if __name__ == '__main__':
+
+def main():
 
     # for template matching and finding their pixels in the image
     planet_templates = []
@@ -311,14 +309,6 @@ if __name__ == '__main__':
     # check if templates are loaded
     if len(planet_templates) == 0:
         print("Planet templates could not get loaded. Please check the paths.")
-        exit()
-
-    # for displaying info
-    planet_images = [cv2.imread(file) for file in glob.glob("images/*.jpg")]
-
-    # check if planets are loaded
-    if len(planet_images) == 0:
-        print("Planet images could not get loaded. Please check the paths.")
         exit()
 
     # play the background sound
@@ -364,11 +354,6 @@ if __name__ == '__main__':
         h, w, d = marker_image.shape
         projectionImage[cp[1]:cp[1] + h, cp[0]:cp[0] + w] = marker_image.copy()
     h, w, d = projectionImage.shape
-
-    # initialize the feature detector
-    # we use orb, make it ready
-    orb = cv2.ORB_create(nfeatures=500)
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
     # Create an opencv window to display the projection onto
     cv2.namedWindow("Projector", cv2.WND_PROP_FULLSCREEN)
@@ -432,10 +417,6 @@ if __name__ == '__main__':
                         # prepare the information of the planet we land
                         info = prepare_info(planet)
 
-                        # get the shuttle's position
-                        x = int(updatedPoint[0])
-                        y = int(updatedPoint[1])
-
                         # get the font
                         fontsize = 20
                         font = ImageFont.truetype("spacefont.ttf", fontsize)
@@ -471,3 +452,7 @@ if __name__ == '__main__':
     # When everything done, release the capture
     cam.release()
     cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    main()
