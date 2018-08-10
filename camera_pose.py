@@ -91,9 +91,9 @@ def prepare_info(planet):
            "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
            "\n--Number of Moons: " + str(planet.numberOfMoons) + \
            "\n--Compounds Found: " + str(planet.compoundFound) + \
-           "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" + \
+           "\n--orbit Time: " + str(planet.orbitTime) + " Earth days" + \
            "\n--Day Time: " + str(planet.dayTime) + " Earth days" + \
-           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " Celcius Degrees"
+           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " Degrees Celcius"
 
     return info
 
