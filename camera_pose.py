@@ -72,12 +72,12 @@ class Planet(object):
     orbitTime = 0 # in days (earth)
     dayTime = 0 # in days (earth)
 
-    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime, surfaceTemperature):
+    def __init__(self, name, distanceFromEarth, size, numberOfMoons, gravity, compoundFound, orbitTime, dayTime, surfaceTemperature):
         self.name = name
-        self.distanceFromSun = distanceFromEarth
+        self.distanceFromEarth = distanceFromEarth
         self.size = size
         self.gravity = gravity
-        self.moons = moons
+        self.numberOfMoons = numberOfMoons
         self.compoundFound = compoundFound
         self.orbitTime = orbitTime
         self.dayTime = dayTime
@@ -92,11 +92,11 @@ def prepare_info(planet):
            "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " light years" + \
            "\n--Size: " + str(planet.size) + " x of Earth" + \
            "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
-           "\n--Moons: " + str(planet.moons) + \
+           "\n--Number of Moons: " + str(planet.numberOfMoons) + \
            "\n--Compounds Found: " + str(planet.compoundFound) + \
            "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" + \
            "\n--Day Time: " + str(planet.dayTime) + " Earth days" + \
-           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " C"
+           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " Celcius Degrees"
 
     return info
 
@@ -429,7 +429,6 @@ if __name__ == '__main__':
                 # loop over the objects of planets
                 for planet in planet_list:
                     if planet.name == planetname:  # find the one that matches the one we landed
-
                         # prepare the information of the planet we land
                         info = prepare_info(planet)
 
