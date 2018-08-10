@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 from PIL import Image
 from PIL import ImageFont, ImageDraw
-from multiprocessing import Pipe, Process
+from multiprocessing import Process,Pipe
 
 # for the sound stuff
 pygame.mixer.init()
@@ -265,7 +265,7 @@ def clean_asin(asin_angle_in_radians):
     return min(1, max(asin_angle_in_radians, -1))
 
 
-def main(x):
+def main(child_conn):
 
     # play the background sound
     mixer.music.load('sounds/background.mp3')
@@ -362,11 +362,12 @@ def main(x):
         coordinates[1] = updatedPoint[1]
 
         # send to blender
-        x.send(coordinates)
+        child_conn.send(coordinates)
+        child_conn.close()
 
-        # get from the blender
-        while not x.recv():
-            planetname = x.recv(4096)
+        # get from the blender, wait for an answer
+        #while not x.recv():
+        #    planetname = x.recv(4096)
 
         print(planetname)
 
@@ -411,5 +412,6 @@ def main(x):
 
 
 if __name__ == "__main__":
+
     # execute only if run as a script
-    main(x)
+    main(child_conn)
