@@ -2,12 +2,12 @@ import cv2
 import pygame
 import numpy as np
 import math
-from playsound import playsound
 import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 from PIL import Image
 from PIL import ImageFont, ImageDraw
 import glob
+from collections import OrderedDict
 
 # for the sound stuff
 pygame.mixer.init()
@@ -19,6 +19,8 @@ MIN_MATCH_COUNT = 6
 MAX_MATCH_COUNT = 20
 CAM_WIDTH = 1600
 CAM_HEIGHT = 896
+DISPLAY_INFO_LOCATION_X = projectedImageWidth * 0.2
+DISPLAY_INFO_LOCATION_Y = projectedImageHeight * 0.7
 MATRIX_SMOOTHENING_FACTOR = 0.2
 DELTA_T = 1 # time interval
 trackedCenterPoint = [0, 0]
@@ -28,22 +30,41 @@ smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 # Global variable to hold all celestial bodies
 planets = stars = planet_list = []
 
-# Just using this dummy image for testing purposes
+# images to be loaded
 imageToBeProjected = 'solar_system2.png'
 shuttleToBeDrawn = 'shuttleIcon.png'
+sun = 'planets/sun.jpg'
+mercury = 'planets/mercury.jpg'
+venus = 'planets/venus.jpg'
+earth = 'planets/earth.jpg'
+mars = 'planets/mars.jpg'
+jupiter = 'planets/jupiter.jpg'
+saturn = 'planets/saturn.jpg'
+uranus = 'planets/uranus.jpg'
+neptune = 'planets/neptune.jpg'
 
 # marker stuff
 marker_file_name = ["markers/marker_one_small.png", "markers/marker_two_small.png", "markers/marker_three_small.png", "markers/marker_four_small.png"]
 marker_points = [[0, 0], [0, projectedImageHeight - 100], [projectedImageWidth - 100, 0], [projectedImageWidth - 100, projectedImageHeight - 100]]
 
 
+"""Specific class which is used to read template images with filenames associated with it"""
+class PlanetTemplateImage:
+    def __init__(self, img_name):
+        self.img = cv2.imread(img_name, 0)
+        self.__name = img_name
+
+    def __str__(self):
+        return self.__name
+
+
 """
 Planet class to make things easier to handle.
-
 """
 class Planet(object):
     name = ""
     distanceFromEarth = 0 #in lightyears
+    surfaceTemperature = 0 #in celcius
     size = 0 # multiplier only. x times of earth's
     gravity = 0 # multiplier only. x times of earth's
     moons = [] # only the names
@@ -51,7 +72,7 @@ class Planet(object):
     orbitTime = 0 # in days (earth)
     dayTime = 0 # in days (earth)
 
-    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime):
+    def __init__(self, name, distanceFromEarth, size, moons, gravity, compoundFound, orbitTime, dayTime, surfaceTemperature):
         self.name = name
         self.distanceFromSun = distanceFromEarth
         self.size = size
@@ -60,66 +81,30 @@ class Planet(object):
         self.compoundFound = compoundFound
         self.orbitTime = orbitTime
         self.dayTime = dayTime
+        self.surfaceTemperature = surfaceTemperature
+
 
 # Text to display about the celestial body
 def prepare_info(planet):
 
-    info = "-Celestial Body Info" \
+    info = "----------Celestial Body Info" \
            "\n--Name: " + str(planet.name) + \
-           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " lightyears" + \
+           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " light years" + \
            "\n--Size: " + str(planet.size) + " x of Earth" + \
            "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
            "\n--Moons: " + str(planet.moons) + \
            "\n--Compounds Found: " + str(planet.compoundFound) + \
            "\n--Orbit Time: " + str(planet.orbitTime) + " Earth days" + \
-           "\n--Day Time: " + str(planet.dayTime) + " Earth days"
+           "\n--Day Time: " + str(planet.dayTime) + " Earth days" + \
+           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " C"
 
     return info
 
-"""
-def displayInfo(closeUpImage, info):
-
-    # location in the closeUpImage to display the info, fixed locations
-    x = 500
-    y = 800
-
-    # get the font
-    fontsize = 10
-    font = ImageFont.truetype("spacefont.ttf", fontsize)
-
-    # load the image to PIL format
-    img_pil = Image.fromarray(closeUpImage)
-
-    # draw the font
-    draw = ImageDraw.Draw(img_pil)
-    displayingOffset = 50  # how far should the information be displayed (in pixels)
-    draw.text((x + displayingOffset, y), info, font=font, fill=(0, 0, 255, 0))  # color BGR
-
-    # back to opencv format
-    closeUpImage = np.array(img_pil)
-
-    # add a line to the info
-    textOffset = 90  # enough long to cover the text body on X axis
-    cv2.line(closeUpImage, (x, y), (x + displayingOffset + textOffset, y), (0, 0, 255), 1)
-
-    # display it
-    cv2.imshow("Close Up", closeUpImage)
-
-    # play the info effect
-    playsound('sounds/info.wav')
-
-
-def recieveFromBlender():
-
-    planetName, closeupImage = pipe.received()
-    if not planetName == []: # if whatever received was not empty or nonsense
-        any(planet for planet in planet_list if planet.planetName == planetName) # if that planet is in the list
-        info = prepare_info(planet_list[planetName]) # prepare its info
-        displayInfo(closeupImage, info)  # display it
-"""
-
 
 def getPlanetPixelLocations(backgroundImage, templates):
+
+    # container to carry the virtual planet boundries
+    planetRects = []
 
     # work with a copy
     backgroundImage_Gray = cv2.cvtColor(backgroundImage.copy(), cv2.COLOR_BGR2GRAY)
@@ -127,12 +112,20 @@ def getPlanetPixelLocations(backgroundImage, templates):
     # Apply template Matching
     # loop over the list of templates and draw bounding boxes around them in the image
     for i in range(len(templates)):
-        w, h = templates[i].shape[::-1]
-        res = cv2.matchTemplate(backgroundImage_Gray, templates[i], cv2.TM_SQDIFF_NORMED)
+        w, h = templates[i].img.shape[::-1]
+        name = str(templates[i])
+        res = cv2.matchTemplate(backgroundImage_Gray, templates[i].img, cv2.TM_SQDIFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
         top_left = min_loc
         bottom_right = (top_left[0] + w, top_left[1] + h)
-        cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2)
+        #cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2) # comment out to see the bounding boxes
+        planetDict = OrderedDict()
+        planetDict['name'] = name
+        planetDict['tl-br'] = (top_left, bottom_right)
+
+        planetRects.append(planetDict)
+
+    return planetRects
 
 
 def init_webcam(mirror=False):
@@ -289,23 +282,43 @@ def get_camera_rotation(homographyMatrix):
     # Change the sign of the angle if the rocket is turning the opposite way to desired
     #sine of the angle
     sinAngle = camera_vector[0] * proj_vector[1] - camera_vector[1] * proj_vector[0]
+
     #angle between the vectors
     angle = np.arcsin(np.clip(sinAngle, -1.0, 1.0))
 
     # calculate the 2D rotation matrix from this angle
-    rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    #rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
     return angle
 
+# used to figure if we landed on the planet by means of pixels
+def isInsideRect(currentPos, tl, br):
+    return currentPos[0] <= br[0] and currentPos[0] >= tl[0] and currentPos[1] <= br[1] and currentPos[1] >= tl[1]
+
+
+# in order to avoid divide by zero or infinity errors
+def clean_asin(asin_angle_in_radians):
+    return min(1, max(asin_angle_in_radians, -1))
 
 if __name__ == '__main__':
 
     # for template matching and finding their pixels in the image
-    planet_templates = [cv2.imread(file, cv2.IMREAD_GRAYSCALE) for file in glob.glob("templates/*.png")]
+    planet_templates = []
+    for file in glob.glob("templates/*.png"):
+        image = PlanetTemplateImage(file)
+        planet_templates.append(image)
 
     # check if templates are loaded
     if len(planet_templates) == 0:
         print("Planet templates could not get loaded. Please check the paths.")
+        exit()
+
+    # for displaying info
+    planet_images = [cv2.imread(file) for file in glob.glob("images/*.jpg")]
+
+    # check if planets are loaded
+    if len(planet_images) == 0:
+        print("Planet images could not get loaded. Please check the paths.")
         exit()
 
     # play the background sound
@@ -324,12 +337,12 @@ if __name__ == '__main__':
             for planet in planets:
                 planet_list.append(
                     Planet(planet[0].text, planet[1].text, planet[2].text, planet[3].text, planet[4].text,
-                           planet[5].text, planet[6].text, planet[7].text))
+                           planet[5].text, planet[6].text, planet[7].text, planet[8].text))
         elif stars:  # since there is only one star (sun), we just add it into the list of planets
             for star in stars:
                 planet_list.append(
                     Planet(star[0].text, star[1].text, star[2].text, star[3].text, star[4].text, star[5].text,
-                           star[6].text, star[7].text))
+                           star[6].text, star[7].text, star[8].text))
         else:
             print("Nothing was read from the XML.")
 
@@ -342,8 +355,8 @@ if __name__ == '__main__':
     projectionImage = cv2.imread(imageToBeProjected)
     shuttleIcon = cv2.imread(shuttleToBeDrawn, cv2.IMREAD_UNCHANGED) # read with the alpha channel
 
-    # find the planets
-    getPlanetPixelLocations(projectionImage, planet_templates)
+    # get the planet locations
+    planetLocations = getPlanetPixelLocations(projectionImage, planet_templates)
 
     # Draw markers on the image
     for marker_index, cp in enumerate(marker_points):
@@ -405,20 +418,50 @@ if __name__ == '__main__':
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
 
-        # check if we are on any celestial body
-        #if checkPositionOfShuttle(updatedPoint):
-        #    displayInfo()
+        # get the planet names and respective locations
+        for d in planetLocations:
+            name, pos = d.values()
+            tl = pos[0]
+            br = pos[1]
+            if isInsideRect(updatedPoint, tl, br):  # if we are inside the boundaries of any
+                tmp = name.replace('templates/', '')  # remove the path-related part of the string
+                planetname = tmp.replace('.png', '')  # remove the file-related part of the string
+                # loop over the objects of planets
+                for planet in planet_list:
+                    if planet.name == planetname:  # find the one that matches the one we landed
+
+                        # prepare the information of the planet we land
+                        info = prepare_info(planet)
+
+                        # get the shuttle's position
+                        x = int(updatedPoint[0])
+                        y = int(updatedPoint[1])
+
+                        # get the font
+                        fontsize = 20
+                        font = ImageFont.truetype("spacefont.ttf", fontsize)
+
+                        # load the image to PIL format
+                        img_pil = Image.fromarray(processedImage)
+
+                        # draw the text
+                        draw = ImageDraw.Draw(img_pil)
+                        draw.text((DISPLAY_INFO_LOCATION_X, DISPLAY_INFO_LOCATION_Y), info, font=font, fill=(0, 255, 255, 0))  # color BGR
+
+                        # back to opencv format
+                        processedImage = np.array(img_pil)
+                        break
 
         # rotate the shuttle as the camera does
         # first though, get a copy
         toBeRotatedShuttle = shuttleIcon.copy()
         rows, cols, w = toBeRotatedShuttle.shape
         angle = get_camera_rotation(smoothenedMatrix)
-        angleInDegrees = round(math.degrees(math.asin(angle)), 2)  # convert radian to degrees
+        angleInDegrees = round(math.degrees(clean_asin(angle)), 2)  # convert radian to degrees
         rotationMatrix = cv2.getRotationMatrix2D((cols / 2, rows / 2), angleInDegrees, 1)
         toBeRotatedShuttle = cv2.warpAffine(toBeRotatedShuttle, rotationMatrix, (cols, rows), cv2.INTER_LANCZOS4)
 
-        # Overlay transparent images at desired postion(x,y) and Scale.
+        # Overlay transparent images at desired position(x,y) and scale.
         result = transparentOverlay(processedImage, toBeRotatedShuttle, tuple(trackedCenterPoint), 0.7)
 
         # Display the resulting projector image with a dot for the camera location
