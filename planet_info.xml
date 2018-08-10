@@ -80,7 +80,7 @@
 		<item name="Surface temperature">-190</item>
     </planet>
     <planet>
-        <item name="Name">Uranus</item>
+        <item name="Name">uranus</item>
         <item name="Distance from the Earth">2719.99</item>
 		<item name="Size">4</item>
         <item name="Number of Moons">27</item>
