@@ -6,8 +6,7 @@ import xml.etree.ElementTree as ET
 from pygame import mixer # Load the required library
 from PIL import Image
 from PIL import ImageFont, ImageDraw
-import glob
-from collections import OrderedDict
+from multiprocessing import Pipe, Process
 
 # for the sound stuff
 pygame.mixer.init()
@@ -96,33 +95,6 @@ def prepare_info(planet):
            "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " Degrees Celcius"
 
     return info
-
-
-def getPlanetPixelLocations(backgroundImage, templates):
-
-    # container to carry the virtual planet boundries
-    planetRects = []
-
-    # work with a copy
-    backgroundImage_Gray = cv2.cvtColor(backgroundImage.copy(), cv2.COLOR_BGR2GRAY)
-
-    # Apply template Matching
-    # loop over the list of templates and draw bounding boxes around them in the image
-    for i in range(len(templates)):
-        w, h = templates[i].img.shape[::-1]
-        name = str(templates[i])
-        res = cv2.matchTemplate(backgroundImage_Gray, templates[i].img, cv2.TM_SQDIFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-        top_left = min_loc
-        bottom_right = (top_left[0] + w, top_left[1] + h)
-        #cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2) # comment out to see the bounding boxes
-        planetDict = OrderedDict()
-        planetDict['name'] = name
-        planetDict['tl-br'] = (top_left, bottom_right)
-
-        planetRects.append(planetDict)
-
-    return planetRects
 
 
 def init_webcam(mirror=False):
@@ -288,28 +260,12 @@ def get_camera_rotation(homographyMatrix):
 
     return angle
 
-# used to figure if we landed on the planet by means of pixels
-def isInsideRect(currentPos, tl, br):
-    return currentPos[0] <= br[0] and currentPos[0] >= tl[0] and currentPos[1] <= br[1] and currentPos[1] >= tl[1]
-
-
 # in order to avoid divide by zero or infinity errors
 def clean_asin(asin_angle_in_radians):
     return min(1, max(asin_angle_in_radians, -1))
 
 
-def main():
-
-    # for template matching and finding their pixels in the image
-    planet_templates = []
-    for file in glob.glob("templates/*.png"):
-        image = PlanetTemplateImage(file)
-        planet_templates.append(image)
-
-    # check if templates are loaded
-    if len(planet_templates) == 0:
-        print("Planet templates could not get loaded. Please check the paths.")
-        exit()
+def main(x):
 
     # play the background sound
     mixer.music.load('sounds/background.mp3')
@@ -344,9 +300,6 @@ def main():
     # Load the image that is going to be projected
     projectionImage = cv2.imread(imageToBeProjected)
     shuttleIcon = cv2.imread(shuttleToBeDrawn, cv2.IMREAD_UNCHANGED) # read with the alpha channel
-
-    # get the planet locations
-    planetLocations = getPlanetPixelLocations(projectionImage, planet_templates)
 
     # Draw markers on the image
     for marker_index, cp in enumerate(marker_points):
@@ -388,7 +341,7 @@ def main():
         homographyMatrix, matchesMask = get_homography(matches, projectionImage_kp, cameraImage_kp)
 
         # Visualize!
-        show_matches(processedImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix)
+        #show_matches(processedImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix)
 
         # Get a virtual point on the image
         # Check first if the image is fully visible
@@ -403,34 +356,37 @@ def main():
         # we don't want scattering or abrupt weird moves, so smoothen the motion
         smoothenCenterMotion(updatedPoint, DELTA_T)
 
-        # get the planet names and respective locations
-        for d in planetLocations:
-            name, pos = d.values()
-            tl = pos[0]
-            br = pos[1]
-            if isInsideRect(updatedPoint, tl, br):  # if we are inside the boundaries of any
-                tmp = name.replace('templates/', '')  # remove the path-related part of the string
-                planetname = tmp.replace('.png', '')  # remove the file-related part of the string
-                # loop over the objects of planets
-                for planet in planet_list:
-                    if planet.name == planetname:  # find the one that matches the one we landed
-                        # prepare the information of the planet we land
-                        info = prepare_info(planet)
+        # convert tuple coordinates to list coordinates
+        coordinates = []
+        coordinates[0] = updatedPoint[0]
+        coordinates[1] = updatedPoint[1]
 
-                        # get the font
-                        fontsize = 20
-                        font = ImageFont.truetype("spacefont.ttf", fontsize)
+        # send to blender
+        x.send(coordinates)
 
-                        # load the image to PIL format
-                        img_pil = Image.fromarray(processedImage)
+        # get from the blender
+        while not x.recv():
+            planetname = x.recv(4096)
 
-                        # draw the text
-                        draw = ImageDraw.Draw(img_pil)
-                        draw.text((DISPLAY_INFO_LOCATION_X, DISPLAY_INFO_LOCATION_Y), info, font=font, fill=(0, 255, 255, 0))  # color BGR
+        print(planetname)
 
-                        # back to opencv format
-                        processedImage = np.array(img_pil)
-                        break
+        # loop over the objects of planets
+        for planet in planet_list:
+            if planet.name == planetname:  # find the one that matches the one we landed
+            # prepare the information of the planet we land
+            info = prepare_info(planet)
+            # get the font
+            fontsize = 20
+            font = ImageFont.truetype("spacefont.ttf", fontsize)
+            # load the image to PIL format
+            img_pil = Image.fromarray(processedImage)
+            # draw the text
+            draw = ImageDraw.Draw(img_pil)
+            draw.text((DISPLAY_INFO_LOCATION_X, DISPLAY_INFO_LOCATION_Y), info, font=font, fill=(0, 255, 255, 0))  # color BGR
+
+            # back to opencv format
+            processedImage = np.array(img_pil)
+            break
 
         # rotate the shuttle as the camera does
         # first though, get a copy
@@ -456,4 +412,4 @@ def main():
 
 if __name__ == "__main__":
     # execute only if run as a script
-    main()
+    main(x)
