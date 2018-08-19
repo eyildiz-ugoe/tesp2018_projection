@@ -86,7 +86,7 @@ def prepare_info(planet):
 
     info = "----------Celestial Body Info" \
            "\n--Name: " + str(planet.name) + \
-           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " light years" + \
+           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " kilometers" + \
            "\n--Size: " + str(planet.size) + " x of Earth" + \
            "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
            "\n--Number of Moons: " + str(planet.numberOfMoons) + \
