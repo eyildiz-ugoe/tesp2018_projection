@@ -16,4 +16,4 @@ This project has been supervised by Professor Kagami at Tohoku University. The f
 @eyildiz-ugoe
 
 # Continous Development
-Depending on availability of free time, the project can be extended by one or more members of the project. The file 'camera_pose2.py' is intended for this purpose, and thus it is not supposed to be ran for any kind of purpose unless stated.
+Depending on availability of free time, the project can be extended by one or more members of the project. The file `camera_pose2.py` is intended for this purpose, and thus it is not supposed to be ran for any kind of purpose unless stated.
