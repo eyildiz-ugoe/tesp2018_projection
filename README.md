@@ -7,3 +7,13 @@ The program was coded in Python 3.5. Kindly install the missing packages which w
 # Use
 Run the program and direct the external USB camera towards the surface on which the projector is projecting the 2D image, prompted by the program. The USB camera will act as a controller for the space shuttle, which should be moved gently and slowly. Abrupt movements and sudden changes in rotation may not be the most clever way to control the shuttle. As the shuttle lands on the celestial body, a small information box about the planets will pop up.
 
+# Contributors
+This project has been supervised by Professor Kagami at Tohoku University. The following members have equally contributed to the project progress:
+
+@Spimp
+@Enzymator
+@DesuDeluxe
+@eyildiz-ugoe
+
+# Continous Development
+Depending on availability of free time, the project can be extended by one or more members of the project.
