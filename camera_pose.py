@@ -1,459 +1,686 @@
-import cv2
-import pygame
-import numpy as np
+from __future__ import annotations
+
+import argparse
 import math
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Optional, Sequence, Tuple
+
+import cv2
+import numpy as np
+import pygame
 import xml.etree.ElementTree as ET
-from pygame import mixer # Load the required library
-from PIL import Image
-from PIL import ImageFont, ImageDraw
-import glob
-from collections import OrderedDict
+from PIL import Image, ImageDraw, ImageFont
+from pygame import mixer
 
-# for the sound stuff
-pygame.mixer.init()
+PROJECT_ROOT = Path(__file__).resolve().parent
 
-# Settings
-projectedImageHeight = 1080
-projectedImageWidth = 1920
-MIN_MATCH_COUNT = 6
-MAX_MATCH_COUNT = 20
-CAM_WIDTH = 1600
-CAM_HEIGHT = 896
-DISPLAY_INFO_LOCATION_X = projectedImageWidth * 0.2
-DISPLAY_INFO_LOCATION_Y = projectedImageHeight * 0.7
-MATRIX_SMOOTHENING_FACTOR = 0.2
-DELTA_T = 1 # time interval
-trackedCenterPoint = [0, 0]
-trackingVelocity = [0, 0]
-smoothenedMatrix = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
-# Global variable to hold all celestial bodies
-planets = stars = planet_list = []
+@dataclass
+class Settings:
+    """Runtime configuration for the interactive projection."""
 
-# images to be loaded
-imageToBeProjected = 'solar_system2.png'
-shuttleToBeDrawn = 'shuttleIcon.png'
+    projected_height: int = 1080
+    projected_width: int = 1920
+    min_match_count: int = 6
+    max_match_count: int = 20
+    matrix_smoothing_factor: float = 0.2
+    delta_t: float = 1.0
+    info_location: Optional[Tuple[float, float]] = None
+    marker_points: Optional[Tuple[Tuple[int, int], ...]] = None
+    camera_width: int = 1600
+    camera_height: int = 896
 
-# marker stuff
-marker_file_name = ["markers/marker_one_small.png", "markers/marker_two_small.png", "markers/marker_three_small.png", "markers/marker_four_small.png"]
-marker_points = [[0, 0], [0, projectedImageHeight - 100], [projectedImageWidth - 100, 0], [projectedImageWidth - 100, projectedImageHeight - 100]]
+    def __post_init__(self) -> None:
+        self._ensure_defaults()
 
-# initialize the feature detector
-# we use orb, make it ready
-orb = cv2.ORB_create(nfeatures=500)
-bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-matches = []
-matchesMask = []
+    def _ensure_defaults(self) -> None:
+        if self.info_location is None:
+            self.info_location = (self.projected_width * 0.2, self.projected_height * 0.7)
+        if self.marker_points is None:
+            self.marker_points = (
+                (0, 0),
+                (0, self.projected_height - 100),
+                (self.projected_width - 100, 0),
+                (self.projected_width - 100, self.projected_height - 100),
+            )
 
-"""Specific class which is used to read template images with filenames associated with it"""
+    def update_projection(self, height: int, width: int) -> None:
+        self.projected_height = height
+        self.projected_width = width
+        self.info_location = None
+        self.marker_points = None
+        self._ensure_defaults()
+
+
+@dataclass
+class TrackingState:
+    """Stores the current state of the shuttle tracking calculations."""
+
+    center_point: np.ndarray
+    velocity: np.ndarray
+    homography: np.ndarray
+
+
+@dataclass
 class PlanetTemplateImage:
-    def __init__(self, img_name):
-        self.img = cv2.imread(img_name, 0)
-        self.__name = img_name
+    """Holds a grayscale template image and its identifier."""
 
-    def __str__(self):
-        return self.__name
+    name: str
+    image: np.ndarray
 
-
-"""
-Planet class to make things easier to handle.
-"""
-class Planet(object):
-    name = ""
-    distanceFromEarth = 0 #in lightyears
-    surfaceTemperature = 0 #in celcius
-    size = 0 # multiplier only. x times of earth's
-    gravity = 0 # multiplier only. x times of earth's
-    moons = [] # only the names
-    compoundFound = []
-    orbitTime = 0 # in days (earth)
-    dayTime = 0 # in days (earth)
-
-    def __init__(self, name, distanceFromEarth, size, numberOfMoons, gravity, compoundFound, orbitTime, dayTime, surfaceTemperature):
-        self.name = name
-        self.distanceFromEarth = distanceFromEarth
-        self.size = size
-        self.gravity = gravity
-        self.numberOfMoons = numberOfMoons
-        self.compoundFound = compoundFound
-        self.orbitTime = orbitTime
-        self.dayTime = dayTime
-        self.surfaceTemperature = surfaceTemperature
+    @classmethod
+    def from_path(cls, path: Path) -> "PlanetTemplateImage":
+        image = cv2.imread(str(path), 0)
+        if image is None:
+            raise FileNotFoundError(f"Could not load template image at {path!s}")
+        return cls(name=path.stem, image=image)
 
 
-# Text to display about the celestial body
-def prepare_info(planet):
+@dataclass
+class Planet:
+    """Container describing a celestial body."""
 
-    info = "----------Celestial Body Info" \
-           "\n--Name: " + str(planet.name) + \
-           "\n--Distance from the Earth: " + str(planet.distanceFromEarth) + " kilometers" + \
-           "\n--Size: " + str(planet.size) + " x of Earth" + \
-           "\n--Gravity: " + str(planet.gravity) + " x of Earth" + \
-           "\n--Number of Moons: " + str(planet.numberOfMoons) + \
-           "\n--Compounds Found: " + str(planet.compoundFound) + \
-           "\n--orbit Time: " + str(planet.orbitTime) + " Earth days" + \
-           "\n--Day Time: " + str(planet.dayTime) + " Earth days" + \
-           "\n--Surface Temperature: " + str(planet.surfaceTemperature) + " Degrees Celcius"
+    name: str
+    distance_from_earth: str
+    size: str
+    number_of_moons: str
+    gravity: str
+    compounds_found: str
+    orbit_time: str
+    day_time: str
+    surface_temperature: str
 
-    return info
+    @classmethod
+    def from_xml_element(cls, element: ET.Element) -> "Planet":
+        values = [child.text or "" for child in element]
+        return cls(*values)
 
 
-def getPlanetPixelLocations(backgroundImage, templates):
+def prepare_info(planet: Planet) -> str:
+    """Format a block of descriptive text for the provided planet."""
 
-    # container to carry the virtual planet boundries
-    planetRects = []
+    return (
+        "----------Celestial Body Info"
+        f"\n--Name: {planet.name}"
+        f"\n--Distance from the Earth: {planet.distance_from_earth} kilometers"
+        f"\n--Size: {planet.size} x of Earth"
+        f"\n--Gravity: {planet.gravity} x of Earth"
+        f"\n--Number of Moons: {planet.number_of_moons}"
+        f"\n--Compounds Found: {planet.compounds_found}"
+        f"\n--orbit Time: {planet.orbit_time} Earth days"
+        f"\n--Day Time: {planet.day_time} Earth days"
+        f"\n--Surface Temperature: {planet.surface_temperature} Degrees Celcius"
+    )
 
-    # work with a copy
-    backgroundImage_Gray = cv2.cvtColor(backgroundImage.copy(), cv2.COLOR_BGR2GRAY)
 
-    # Apply template Matching
-    # loop over the list of templates and draw bounding boxes around them in the image
-    for i in range(len(templates)):
-        w, h = templates[i].img.shape[::-1]
-        name = str(templates[i])
-        res = cv2.matchTemplate(backgroundImage_Gray, templates[i].img, cv2.TM_SQDIFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+def get_planet_pixel_locations(
+    background_image: np.ndarray,
+    templates: Sequence[PlanetTemplateImage],
+) -> List[Tuple[str, Tuple[Tuple[int, int], Tuple[int, int]]]]:
+    """Return bounding boxes for each template found in the background image."""
+
+    grayscale = cv2.cvtColor(background_image.copy(), cv2.COLOR_BGR2GRAY)
+    planet_rects: List[Tuple[str, Tuple[Tuple[int, int], Tuple[int, int]]]] = []
+
+    for template in templates:
+        width, height = template.image.shape[::-1]
+        res = cv2.matchTemplate(grayscale, template.image, cv2.TM_SQDIFF_NORMED)
+        _, _, min_loc, _ = cv2.minMaxLoc(res)
         top_left = min_loc
-        bottom_right = (top_left[0] + w, top_left[1] + h)
-        #cv2.rectangle(backgroundImage, top_left, bottom_right, 255, 2) # comment out to see the bounding boxes
-        planetDict = OrderedDict()
-        planetDict['name'] = name
-        planetDict['tl-br'] = (top_left, bottom_right)
+        bottom_right = (top_left[0] + width, top_left[1] + height)
+        planet_rects.append((template.name, (top_left, bottom_right)))
 
-        planetRects.append(planetDict)
-
-    return planetRects
+    return planet_rects
 
 
-def init_webcam(mirror=False):
-    cam = []
-    camera_height = []
-    camera_width = []
-    cam = cv2.VideoCapture(1) # try the external camera first
-    cam.set(cv2.CAP_PROP_FPS,50)
-    cam.set(cv2.CAP_PROP_EXPOSURE,10)
-    cam.set(cv2.CAP_PROP_FRAME_WIDTH,CAM_WIDTH)
-    cam.set(cv2.CAP_PROP_FRAME_HEIGHT,CAM_HEIGHT)
-    try:
-        ret_val, camera_image = cam.read()
-        if len(camera_image) == 0:
-            print('Camera not connected')
-        camera_height,camera_width,d = camera_image.shape
-    except:
-        print("No external camera found, attempting to default to  internal camera")
-        cam = cv2.VideoCapture(1)
-        ret_val, camera_image = cam.read()
-        if len(camera_image) == 0:
-            raise
-        camera_height,camera_width,d = camera_image.shape
-    return cam, camera_height, camera_width
+def init_webcam(
+    primary_index: int,
+    fallback_index: int,
+    desired_width: int,
+    desired_height: int,
+) -> Tuple[cv2.VideoCapture, int, int]:
+    """Attempt to connect to the webcam, falling back to a secondary index."""
+
+    def _open_camera(index: int) -> Tuple[cv2.VideoCapture, np.ndarray]:
+        camera = cv2.VideoCapture(index)
+        camera.set(cv2.CAP_PROP_FPS, 50)
+        camera.set(cv2.CAP_PROP_EXPOSURE, 10)
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, desired_width)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, desired_height)
+        ret_val, frame = camera.read()
+        if not ret_val or frame is None:
+            raise RuntimeError(f"Unable to read from camera index {index}.")
+        return camera, frame
+
+    errors = []
+    tried_indices = []
+    for index in (primary_index, fallback_index):
+        if index in tried_indices:
+            continue
+        tried_indices.append(index)
+        try:
+            camera, frame = _open_camera(index)
+            height, width, _ = frame.shape
+            return camera, height, width
+        except RuntimeError as exc:  # pragma: no cover - depends on hardware
+            errors.append(str(exc))
+
+    joined_errors = " \n".join(errors)
+    raise RuntimeError(
+        "No available camera detected. Attempted indices: "
+        f"{', '.join(str(idx) for idx in tried_indices)}.\n{joined_errors}"
+    )
 
 
-def get_feature_matches(projectionImage_des, cameraImage):
-    # Find the keypoints and descriptors with ORB
-    cameraImage_kp = orb.detect(cameraImage, None)
+def get_feature_matches(
+    matcher: cv2.BFMatcher,
+    detector: cv2.ORB,
+    projection_descriptors: np.ndarray,
+    camera_image: np.ndarray,
+    max_matches: int,
+) -> Tuple[List[cv2.DMatch], Sequence[cv2.KeyPoint]]:
+    """Return feature matches between the projection and camera images."""
 
-    # Compute matches
-    matches = []
-    if len(cameraImage_kp) > 0:
-        cameraImage_kp, cameraImage_des = orb.compute(cameraImage, cameraImage_kp)
-        matches = bf.match(projectionImage_des, cameraImage_des)
-        if len(matches) > MAX_MATCH_COUNT:
-            matches = sorted(matches, key=lambda x: x.distance)[0:MAX_MATCH_COUNT]
+    keypoints = detector.detect(camera_image, None)
+    if not keypoints:
+        return [], []
 
-    return matches, cameraImage_kp
+    keypoints, descriptors = detector.compute(camera_image, keypoints)
+    if descriptors is None or projection_descriptors is None:
+        return [], keypoints
 
-# Function to find the homography matrix which transforms from the camera image to the projector image
-def get_homography(matches, projectionImage_kp, cameraImage_kp):
+    matches = matcher.match(projection_descriptors, descriptors)
+    if len(matches) > max_matches:
+        matches = sorted(matches, key=lambda match: match.distance)[:max_matches]
 
-    homographyMatrix = []
-
-    # Only perform this if there are enough matches
-    if len(matches) > MIN_MATCH_COUNT:
-        # Taken from the tutorial
-        src_pts = np.float32([projectionImage_kp[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([cameraImage_kp[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-
-        # Get the homography matrix with RANSAC
-        homographyMatrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-        matchesMask = mask.ravel().tolist()
-    else:
-        print("Not enough matches are found - %d/%d" % (len(matches), MIN_MATCH_COUNT))
-        matchesMask = None
-
-    return homographyMatrix, matchesMask
+    return matches, keypoints
 
 
-def show_matches(projectionImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix):
-    h,w,d = projectionImage.shape
-    pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1, 1, 2)
-    dst = cv2.perspectiveTransform(pts,homographyMatrix)
-    cameraImage = cv2.polylines(cameraImage, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+def get_homography(
+    matches: Sequence[cv2.DMatch],
+    projection_keypoints: Sequence[cv2.KeyPoint],
+    camera_keypoints: Sequence[cv2.KeyPoint],
+    min_match_count: int,
+) -> Tuple[np.ndarray | None, Sequence[int] | None]:
+    """Calculate the homography matrix mapping projection points to camera points."""
 
-    draw_params = dict(matchColor = (0,255,0), # draw matches in green color
-                       singlePointColor = None,
-                       matchesMask = matchesMask, # draw only inliers
-                       flags = 2)
+    if len(matches) <= min_match_count:
+        print(f"Not enough matches are found - {len(matches)}/{min_match_count}")
+        return None, None
 
-    visualizationImage = cv2.drawMatches(projectionImage, projectionImage_kp, cameraImage, cameraImage_kp, matches, None, **draw_params)
-    cv2.imshow('Debug', visualizationImage)
+    src_pts = np.float32([projection_keypoints[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32([camera_keypoints[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
-
-# Returns the location of the centre of the camera image in the projector image
-def virtual_point(homographyMatrix):
-    pts = np.float32([ [round(CAM_WIDTH/2),round(CAM_HEIGHT/2)] ]).reshape(-1,1,2)
-    m = cv2.invert(homographyMatrix)
-    # find the location of this same point in the projector image
-    dst = cv2.perspectiveTransform(pts, m[1])
-    return dst
+    homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+    matches_mask = mask.ravel().tolist() if mask is not None else None
+    return homography_matrix, matches_mask
 
 
-def smoothenMatrix(homographyMatrix):
-    for j in range(3):
-        for i in range(3):
-            smoothenedMatrix[i][j] = smoothenedMatrix[i][j] * (MATRIX_SMOOTHENING_FACTOR) + homographyMatrix[i][j] * (1 - MATRIX_SMOOTHENING_FACTOR)
+def show_matches(
+    projection_image: np.ndarray,
+    camera_image: np.ndarray,
+    projection_keypoints: Sequence[cv2.KeyPoint],
+    camera_keypoints: Sequence[cv2.KeyPoint],
+    matches: Sequence[cv2.DMatch],
+    matches_mask: Sequence[int] | None,
+    homography_matrix: np.ndarray,
+) -> None:
+    """Visualise matched key points between the projection and camera images."""
 
-"""
-We need to ensure that we are able to match the features while having a bounding box around the projected image.
-"""
-def isImageFullyVisible(homographyMatrix, background_height, background_width):
-    pts = np.float32([ [0,0],[0,background_height-1],[background_width-1,background_height-1],[background_width-1,0] ]).reshape(-1,1,2)
-    dst = cv2.perspectiveTransform(pts,homographyMatrix)
+    height, width, _ = projection_image.shape
+    pts = np.float32([[0, 0], [0, height - 1], [width - 1, height - 1], [width - 1, 0]]).reshape(-1, 1, 2)
+    dst = cv2.perspectiveTransform(pts, homography_matrix)
+    annotated_camera_image = cv2.polylines(camera_image, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+
+    draw_params = dict(
+        matchColor=(0, 255, 0),
+        singlePointColor=None,
+        matchesMask=matches_mask,
+        flags=2,
+    )
+
+    visualization_image = cv2.drawMatches(
+        projection_image,
+        projection_keypoints,
+        annotated_camera_image,
+        camera_keypoints,
+        matches,
+        None,
+        **draw_params,
+    )
+    cv2.imshow("Debug", visualization_image)
+
+
+def virtual_point(
+    homography_matrix: np.ndarray,
+    camera_width: int,
+    camera_height: int,
+) -> np.ndarray:
+    """Return the projector coordinates that correspond to the camera centre."""
+
+    pts = np.float32([[round(camera_width / 2), round(camera_height / 2)]]).reshape(-1, 1, 2)
+    _, inverse_matrix = cv2.invert(homography_matrix)
+    return cv2.perspectiveTransform(pts, inverse_matrix)
+
+
+def smoothen_matrix(
+    current_matrix: np.ndarray,
+    new_matrix: np.ndarray,
+    smoothing_factor: float,
+) -> np.ndarray:
+    """Smooth large changes in the homography matrix to prevent jitter."""
+
+    return current_matrix * smoothing_factor + new_matrix * (1 - smoothing_factor)
+
+
+def is_image_fully_visible(
+    homography_matrix: np.ndarray,
+    background_height: int,
+    background_width: int,
+) -> bool:
+    """Return True if the detected projection corners form a plausible rectangle."""
+
+    pts = np.float32(
+        [[0, 0], [0, background_height - 1], [background_width - 1, background_height - 1], [background_width - 1, 0]]
+    ).reshape(-1, 1, 2)
+    dst = cv2.perspectiveTransform(pts, homography_matrix)
     area = cv2.contourArea(dst)
-    if area > 100000:
-        x,y,w,h = cv2.boundingRect(dst)
-        metric = w*h
-        error_ratio = abs(metric - area) / area
-        if error_ratio < 0.8:
-            return True
-    else:
+    if area <= 100000:
         return False
 
-"""
-We need to smoothen the center point motion of the camera on the projected image. 
-Therefore, we measure how much distance the point takes in a given delta_t time interval.
-And we scale it so that it looks smooth and reasonable.
-"""
-def smoothenCenterMotion(measured_position, delta_t):
-    new_point = [0,0]
-    for i in range(2):
-        new_point[i] = int(round((trackedCenterPoint[i] + trackingVelocity[i] * delta_t) * MATRIX_SMOOTHENING_FACTOR + measured_position[i] * (1 - MATRIX_SMOOTHENING_FACTOR)))
-        trackingVelocity[i] = new_point[i] - trackedCenterPoint[i]
-        trackedCenterPoint[i] = new_point[i]
+    x, y, width, height = cv2.boundingRect(dst)
+    metric = width * height
+    error_ratio = abs(metric - area) / area
+    return error_ratio < 0.8
 
 
-# function to overlay a transparent image on background.
-def transparentOverlay(backgroundImage, overlayImage, pos=(0, 0), scale=1):
-    overlayImage = cv2.resize(overlayImage, (0, 0), fx=scale, fy=scale)
-    h, w, _ = overlayImage.shape  # Size of foreground
-    rows, cols, _ = backgroundImage.shape  # Size of background Image
-    y, x = pos[0], pos[1]  # Position of foreground/overlayImage image
+def smoothen_center_motion(
+    measured_position: Sequence[float],
+    delta_t: float,
+    state: TrackingState,
+    smoothing_factor: float,
+) -> None:
+    """Update the tracked centre point using a simple motion model."""
 
-    # loop over all pixels and apply the blending equation
-    for i in range(h):
-        for j in range(w):
-            if x + i >= rows or y + j >= cols:
+    predicted = state.center_point + state.velocity * delta_t
+    measured = np.array(measured_position, dtype=np.float32)
+    smoothed = np.round(predicted * smoothing_factor + measured * (1 - smoothing_factor)).astype(np.int32)
+    state.velocity = smoothed - state.center_point
+    state.center_point = smoothed
+
+
+def transparent_overlay(
+    background_image: np.ndarray,
+    overlay_image: np.ndarray,
+    position: Tuple[int, int] = (0, 0),
+    scale: float = 1.0,
+) -> np.ndarray:
+    """Overlay a (potentially) transparent image on top of the background image."""
+
+    if scale != 1:
+        overlay_image = cv2.resize(overlay_image, (0, 0), fx=scale, fy=scale)
+
+    rows, cols, _ = background_image.shape
+    height, width = overlay_image.shape[:2]
+    y, x = position
+
+    if x >= rows or y >= cols:
+        return background_image
+
+    overlay_slice = overlay_image[: max(0, rows - x), : max(0, cols - y)]
+    height, width = overlay_slice.shape[:2]
+    roi = background_image[x : x + height, y : y + width]
+
+    if overlay_slice.shape[2] == 3:
+        alpha_mask = np.ones((height, width, 1), dtype=np.float32)
+        overlay_rgb = overlay_slice.astype(np.float32)
+    else:
+        alpha_mask = (overlay_slice[:, :, 3:] / 255.0).astype(np.float32)
+        overlay_rgb = overlay_slice[:, :, :3].astype(np.float32)
+
+    background_rgb = roi.astype(np.float32)
+    blended = alpha_mask * overlay_rgb + (1 - alpha_mask) * background_rgb
+    roi[:] = blended.astype(np.uint8)
+    return background_image
+
+
+def get_camera_rotation(
+    homography_matrix: np.ndarray,
+    camera_width: int,
+    camera_height: int,
+) -> float:
+    """Return the estimated rotation angle of the camera relative to the projection."""
+
+    camera_pts = np.float32(
+        [
+            [round(camera_width / 2), round(camera_height / 2)],
+            [round(10 + camera_width / 2), round(10 + camera_height / 2)],
+        ]
+    ).reshape(-1, 1, 2)
+    proj_pts = cv2.perspectiveTransform(camera_pts, homography_matrix)
+
+    camera_vector = np.array(
+        [
+            camera_pts[0][0][0] - camera_pts[1][0][0],
+            camera_pts[0][0][1] - camera_pts[1][0][1],
+        ],
+        dtype=np.float32,
+    )
+    proj_vector = np.array(
+        [
+            proj_pts[0][0][0] - proj_pts[1][0][0],
+            proj_pts[0][0][1] - proj_pts[1][0][1],
+        ],
+        dtype=np.float32,
+    )
+
+    camera_vector /= max(np.linalg.norm(camera_vector), 1e-6)
+    proj_vector /= max(np.linalg.norm(proj_vector), 1e-6)
+
+    sin_angle = camera_vector[0] * proj_vector[1] - camera_vector[1] * proj_vector[0]
+    angle = np.arcsin(np.clip(sin_angle, -1.0, 1.0))
+    return float(angle)
+
+
+def is_inside_rect(
+    current_pos: Sequence[int],
+    top_left: Sequence[int],
+    bottom_right: Sequence[int],
+) -> bool:
+    """Determine whether the provided position lies within the rectangle."""
+
+    return (
+        top_left[0] <= current_pos[0] <= bottom_right[0]
+        and top_left[1] <= current_pos[1] <= bottom_right[1]
+    )
+
+
+def clean_asin(asin_angle_in_radians: float) -> float:
+    """Clamp the input to the valid range of arcsin to avoid NaNs."""
+
+    return float(min(1, max(asin_angle_in_radians, -1)))
+
+
+def load_planet_data(xml_path: Path) -> List[Planet]:
+    """Load celestial body metadata from the provided XML file."""
+
+    tree = ET.parse(str(xml_path))
+    root = tree.getroot()
+
+    planets: List[Planet] = []
+    for bodies in root:
+        entries = bodies.findall("planet") or bodies.findall("star")
+        for entry in entries:
+            planets.append(Planet.from_xml_element(entry))
+
+    if not planets:
+        raise ValueError(f"No celestial bodies were loaded from {xml_path!s}.")
+
+    return planets
+
+
+def load_planet_templates(template_dir: Path) -> List[PlanetTemplateImage]:
+    """Load and index the planet templates used for collision detection."""
+
+    if not template_dir.exists():
+        raise FileNotFoundError(f"Template directory {template_dir!s} does not exist.")
+
+    templates: List[PlanetTemplateImage] = []
+    for path in sorted(template_dir.glob("*.png")):
+        templates.append(PlanetTemplateImage.from_path(path))
+
+    if not templates:
+        raise ValueError(f"No templates were found in {template_dir!s}.")
+
+    return templates
+
+
+def start_background_music(sound_path: Path, *, loop: bool = True) -> bool:
+    """Initialise the audio mixer (if possible) and start the background music."""
+
+    try:
+        if not pygame.mixer.get_init():  # pragma: no branch - trivial guard
+            pygame.mixer.init()
+        mixer.music.load(str(sound_path))
+        mixer.music.play(-1 if loop else 0)
+        return True
+    except pygame.error as exc:  # pragma: no cover - depends on audio hardware
+        print(f"Audio disabled: {exc}")
+        return False
+
+
+def create_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont:
+    """Return a truetype font, falling back to the default if unavailable."""
+
+    try:
+        return ImageFont.truetype(str(font_path), size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def apply_markers(
+    projection_image: np.ndarray,
+    marker_paths: Sequence[Path],
+    marker_points: Sequence[Tuple[int, int]],
+) -> None:
+    """Overlay the tracking markers on top of the projection image."""
+
+    for marker_path, point in zip(marker_paths, marker_points):
+        marker_image = cv2.imread(str(marker_path))
+        if marker_image is None:
+            raise FileNotFoundError(f"Marker image {marker_path!s} could not be loaded.")
+        height, width, _ = marker_image.shape
+        x, y = point
+        projection_image[y : y + height, x : x + width] = marker_image.copy()
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse command line arguments."""
+
+    parser = argparse.ArgumentParser(description="Interactive Solar System projection controller.")
+    parser.add_argument("--camera-index", type=int, default=1, help="Primary camera index to use.")
+    parser.add_argument("--fallback-camera-index", type=int, default=0, help="Fallback camera index if the primary fails.")
+    parser.add_argument("--mute", action="store_true", help="Disable background music.")
+    parser.add_argument(
+        "--resource-root",
+        type=Path,
+        default=PROJECT_ROOT,
+        help="Directory containing templates, sounds and other resources.",
+    )
+    parser.add_argument("--no-debug", action="store_true", help="Disable the debug visualisation window.")
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    settings = Settings()
+
+    resource_root = args.resource_root.resolve()
+    templates_dir = resource_root / "templates"
+    planet_templates = load_planet_templates(templates_dir)
+
+    if not args.mute:
+        background_track = resource_root / "sounds" / "background.mp3"
+        if background_track.exists():
+            start_background_music(background_track)
+        else:
+            print("Background track not found; continuing without audio.")
+
+    planets = load_planet_data(resource_root / "planet_info.xml")
+
+    try:
+        camera, camera_height, camera_width = init_webcam(
+            args.camera_index,
+            args.fallback_camera_index,
+            desired_width=settings.camera_width,
+            desired_height=settings.camera_height,
+        )
+    except RuntimeError as exc:
+        print(exc)
+        return 1
+
+    projection_path = resource_root / "solar_system2.png"
+    projection_image = cv2.imread(str(projection_path))
+    if projection_image is None:
+        raise FileNotFoundError(f"Projection image {projection_path!s} could not be loaded.")
+
+    shuttle_path = resource_root / "shuttleIcon.png"
+    shuttle_icon = cv2.imread(str(shuttle_path), cv2.IMREAD_UNCHANGED)
+    if shuttle_icon is None:
+        raise FileNotFoundError(f"Shuttle icon {shuttle_path!s} could not be loaded.")
+
+    marker_files = [
+        resource_root / "markers" / "marker_one_small.png",
+        resource_root / "markers" / "marker_two_small.png",
+        resource_root / "markers" / "marker_three_small.png",
+        resource_root / "markers" / "marker_four_small.png",
+    ]
+
+    projection_height, projection_width = projection_image.shape[:2]
+    settings.update_projection(projection_height, projection_width)
+    apply_markers(projection_image, marker_files, settings.marker_points)
+
+    projection_detector = cv2.ORB_create(nfeatures=500)
+    projection_keypoints = projection_detector.detect(projection_image, None)
+    projection_keypoints, projection_descriptors = projection_detector.compute(
+        projection_image, projection_keypoints
+    )
+
+    if not projection_keypoints or projection_descriptors is None:
+        raise RuntimeError("Failed to compute keypoints for the projection image.")
+
+    planet_locations = get_planet_pixel_locations(projection_image, planet_templates)
+
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    camera_detector = cv2.ORB_create(nfeatures=500)
+
+    font = create_font(resource_root / "spacefont.ttf", 20)
+
+    tracking_state = TrackingState(
+        center_point=np.array([settings.projected_width // 2, settings.projected_height // 2], dtype=np.int32),
+        velocity=np.zeros(2, dtype=np.int32),
+        homography=np.identity(3, dtype=np.float32),
+    )
+
+    try:
+        cv2.namedWindow("Projector", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Projector", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Projector", projection_image)
+        if not args.no_debug:
+            cv2.namedWindow("Debug", cv2.WINDOW_NORMAL)
+
+        while True:
+            processed_image = projection_image.copy()
+            ret_val, camera_image = camera.read()
+            if not ret_val or camera_image is None:
+                print("Failed to read from camera. Exiting.")
+                break
+
+            matches, camera_keypoints = get_feature_matches(
+                matcher,
+                camera_detector,
+                projection_descriptors,
+                camera_image,
+                settings.max_match_count,
+            )
+
+            homography_matrix, matches_mask = get_homography(
+                matches,
+                projection_keypoints,
+                camera_keypoints,
+                settings.min_match_count,
+            )
+
+            if homography_matrix is None:
+                cv2.imshow("Projector", processed_image)
+                cv2.waitKey(10)
                 continue
-            alpha = float(overlayImage[i][j][3] / 255.0)  # read the alpha channel
-            backgroundImage[x + i][y + j] = alpha * overlayImage[i][j][:3] + (1 - alpha) * backgroundImage[x + i][y + j]
-    return backgroundImage
 
+            if not args.no_debug:
+                show_matches(
+                    processed_image,
+                    camera_image,
+                    projection_keypoints,
+                    camera_keypoints,
+                    matches,
+                    matches_mask,
+                    homography_matrix,
+                )
 
-'''Takes 2 vectors and returns the rotation matrix between these 2 vectors'''
-def get_camera_rotation(homographyMatrix):
-    # Points in the camera frame
-    camera_pts = np.float32([[round(CAM_WIDTH / 2), round(CAM_HEIGHT / 2)],
-                             [round(10 + CAM_WIDTH / 2), round(10 + CAM_HEIGHT / 2)]]).reshape(-1, 1, 2)
-    # Find these points in the projector image
-    proj_pts = cv2.perspectiveTransform(camera_pts, homographyMatrix)
+            if is_image_fully_visible(homography_matrix, settings.projected_height, settings.projected_width):
+                tracking_state.homography = smoothen_matrix(
+                    tracking_state.homography,
+                    homography_matrix,
+                    settings.matrix_smoothing_factor,
+                )
+                virtual_point_location = virtual_point(
+                    tracking_state.homography,
+                    camera_width,
+                    camera_height,
+                )
+                updated_point = virtual_point_location[0][0]
+            else:
+                updated_point = tracking_state.center_point
 
-    # Find the vectors between the sets of points
-    camera_vector = (camera_pts[0][0][0] - camera_pts[1][0][0], camera_pts[0][0][1] - camera_pts[1][0][1])
-    proj_vector = (proj_pts[0][0][0] - proj_pts[1][0][0], proj_pts[0][0][1] - proj_pts[1][0][1])
+            smoothen_center_motion(
+                updated_point,
+                settings.delta_t,
+                tracking_state,
+                settings.matrix_smoothing_factor,
+            )
 
-    # change the vectors to unit vectors
-    camera_vector = camera_vector / np.absolute(np.linalg.norm(camera_vector))
-    proj_vector = proj_vector / np.absolute(np.linalg.norm(proj_vector))
+            for template_name, (top_left, bottom_right) in planet_locations:
+                if not is_inside_rect(tracking_state.center_point, top_left, bottom_right):
+                    continue
 
-    # calculate the angle between the 2 vectors
-    # Change the sign of the angle if the rocket is turning the opposite way to desired
-    #sine of the angle
-    sinAngle = camera_vector[0] * proj_vector[1] - camera_vector[1] * proj_vector[0]
+                matching_planet = next(
+                    (
+                        planet
+                        for planet in planets
+                        if planet.name.lower() == template_name.lower()
+                    ),
+                    None,
+                )
+                if matching_planet is None:
+                    continue
 
-    #angle between the vectors
-    angle = np.arcsin(np.clip(sinAngle, -1.0, 1.0))
+                info_text = prepare_info(matching_planet)
+                img_pil = Image.fromarray(processed_image)
+                draw = ImageDraw.Draw(img_pil)
+                draw.text(tuple(map(int, settings.info_location)), info_text, font=font, fill=(0, 255, 255, 0))
+                processed_image = np.array(img_pil)
+                break
 
-    # calculate the 2D rotation matrix from this angle
-    #rotation_matrix = np.matrix([[np.cos(angle), -1 * np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+            rotated_shuttle = shuttle_icon.copy()
+            rows, cols = rotated_shuttle.shape[:2]
+            angle = get_camera_rotation(
+                tracking_state.homography,
+                camera_width,
+                camera_height,
+            )
+            angle_in_degrees = math.degrees(clean_asin(angle))
+            rotation_matrix = cv2.getRotationMatrix2D((cols / 2, rows / 2), angle_in_degrees, 1)
+            rotated_shuttle = cv2.warpAffine(rotated_shuttle, rotation_matrix, (cols, rows), cv2.INTER_LANCZOS4)
 
-    return angle
+            processed_image = transparent_overlay(
+                processed_image,
+                rotated_shuttle,
+                position=tuple(tracking_state.center_point.tolist()),
+                scale=0.7,
+            )
 
-# used to figure if we landed on the planet by means of pixels
-def isInsideRect(currentPos, tl, br):
-    return currentPos[0] <= br[0] and currentPos[0] >= tl[0] and currentPos[1] <= br[1] and currentPos[1] >= tl[1]
+            cv2.imshow("Projector", processed_image)
+            key = cv2.waitKey(20)
+            if key in {ord("a"), ord("q")}:
+                break
+    finally:
+        camera.release()
+        cv2.destroyAllWindows()
 
-
-# in order to avoid divide by zero or infinity errors
-def clean_asin(asin_angle_in_radians):
-    return min(1, max(asin_angle_in_radians, -1))
-
-
-def main():
-
-    # for template matching and finding their pixels in the image
-    planet_templates = []
-    for file in glob.glob("templates/*.png"):
-        image = PlanetTemplateImage(file)
-        planet_templates.append(image)
-
-    # check if templates are loaded
-    if len(planet_templates) == 0:
-        print("Planet templates could not get loaded. Please check the paths.")
-        exit()
-
-    # play the background sound
-    mixer.music.load('sounds/background.mp3')
-    mixer.music.play(-1)
-
-    # Get the data from the XML
-    solarSystem = ET.parse('planet_info.xml')
-    celestialBodies = solarSystem.getroot()
-
-    # Parse everything from XML into global variables
-    for cBodies in celestialBodies:
-        planets = cBodies.findall("planet")
-        stars = cBodies.findall("star")
-        if planets:
-            for planet in planets:
-                planet_list.append(
-                    Planet(planet[0].text, planet[1].text, planet[2].text, planet[3].text, planet[4].text,
-                           planet[5].text, planet[6].text, planet[7].text, planet[8].text))
-        elif stars:  # since there is only one star (sun), we just add it into the list of planets
-            for star in stars:
-                planet_list.append(
-                    Planet(star[0].text, star[1].text, star[2].text, star[3].text, star[4].text, star[5].text,
-                           star[6].text, star[7].text, star[8].text))
-        else:
-            print("Nothing was read from the XML.")
-
-    # Set up the camera
-    cam, camera_height, camera_width = init_webcam()
-    CAM_WIDTH = camera_width
-    CAM_HEIGHT = camera_height
-
-    # Load the image that is going to be projected
-    projectionImage = cv2.imread(imageToBeProjected)
-    shuttleIcon = cv2.imread(shuttleToBeDrawn, cv2.IMREAD_UNCHANGED) # read with the alpha channel
-
-    # get the planet locations
-    planetLocations = getPlanetPixelLocations(projectionImage, planet_templates)
-
-    # Draw markers on the image
-    for marker_index, cp in enumerate(marker_points):
-        marker_image = cv2.imread(marker_file_name[marker_index])
-        h, w, d = marker_image.shape
-        projectionImage[cp[1]:cp[1] + h, cp[0]:cp[0] + w] = marker_image.copy()
-    h, w, d = projectionImage.shape
-
-    # Create an opencv window to display the projection onto
-    cv2.namedWindow("Projector", cv2.WND_PROP_FULLSCREEN)
-    cv2.setWindowProperty("Projector", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cv2.imshow('Projector', projectionImage)
-    cv2.namedWindow("Debug", cv2.WINDOW_NORMAL)
-
-    while True:
-
-        # work with a copy
-        processedImage = projectionImage.copy()
-
-        # Find keypoints in the projected image
-        orb2 = cv2.ORB_create(nfeatures=500)
-        projectionImage_kp = orb2.detect(processedImage, None)
-        projectionImage_kp, projectionImage_des = orb2.compute(processedImage, projectionImage_kp)
-
-        # Get an image from the camera
-        ret_val, cameraImage = cam.read()
-
-        # Get the matching features in the camera image using the descriptors from the projection image
-        matches, cameraImage_kp = get_feature_matches(projectionImage_des, cameraImage)
-
-        # if we can't find any matches, just keep displaying the image and inform the user
-        if len(matches) <= MIN_MATCH_COUNT:
-            cv2.imshow('Projector', processedImage)
-            print('Could not find matches.')
-            cv2.waitKey(10)
-            continue
-
-        # Now compute the Homography
-        homographyMatrix, matchesMask = get_homography(matches, projectionImage_kp, cameraImage_kp)
-
-        # Visualize!
-        show_matches(processedImage, cameraImage, projectionImage_kp, cameraImage_kp, homographyMatrix)
-
-        # Get a virtual point on the image
-        # Check first if the image is fully visible
-        # Update the position to the new found position, otherwise keep the old one
-        if isImageFullyVisible(homographyMatrix, projectedImageWidth, projectedImageHeight):
-            smoothenMatrix(homographyMatrix)
-            virtualPoint = virtual_point(smoothenedMatrix)
-            updatedPoint = virtualPoint[0][0]
-        else:
-            updatedPoint = [p for p in trackedCenterPoint]
-
-        # we don't want scattering or abrupt weird moves, so smoothen the motion
-        smoothenCenterMotion(updatedPoint, DELTA_T)
-
-        # get the planet names and respective locations
-        for d in planetLocations:
-            name, pos = d.values()
-            tl = pos[0]
-            br = pos[1]
-            if isInsideRect(updatedPoint, tl, br):  # if we are inside the boundaries of any
-                tmp = name.replace('templates/', '')  # remove the path-related part of the string
-                planetname = tmp.replace('.png', '')  # remove the file-related part of the string
-                # loop over the objects of planets
-                for planet in planet_list:
-                    if planet.name == planetname:  # find the one that matches the one we landed
-                        # prepare the information of the planet we land
-                        info = prepare_info(planet)
-
-                        # get the font
-                        fontsize = 20
-                        font = ImageFont.truetype("spacefont.ttf", fontsize)
-
-                        # load the image to PIL format
-                        img_pil = Image.fromarray(processedImage)
-
-                        # draw the text
-                        draw = ImageDraw.Draw(img_pil)
-                        draw.text((DISPLAY_INFO_LOCATION_X, DISPLAY_INFO_LOCATION_Y), info, font=font, fill=(0, 255, 255, 0))  # color BGR
-
-                        # back to opencv format
-                        processedImage = np.array(img_pil)
-                        break
-
-        # rotate the shuttle as the camera does
-        # first though, get a copy
-        toBeRotatedShuttle = shuttleIcon.copy()
-        rows, cols, w = toBeRotatedShuttle.shape
-        angle = get_camera_rotation(smoothenedMatrix)
-        angleInDegrees = round(math.degrees(clean_asin(angle)), 2)  # convert radian to degrees
-        rotationMatrix = cv2.getRotationMatrix2D((cols / 2, rows / 2), angleInDegrees, 1)
-        toBeRotatedShuttle = cv2.warpAffine(toBeRotatedShuttle, rotationMatrix, (cols, rows), cv2.INTER_LANCZOS4)
-
-        # Overlay transparent images at desired position(x,y) and scale.
-        result = transparentOverlay(processedImage, toBeRotatedShuttle, tuple(trackedCenterPoint), 0.7)
-
-        # Display the resulting projector image with a dot for the camera location
-        cv2.imshow('Projector', processedImage)
-        if cv2.waitKey(20) == ord('a'):
-            break
-
-    # When everything done, release the capture
-    cam.release()
-    cv2.destroyAllWindows()
+    return 0
 
 
 if __name__ == "__main__":
-    # execute only if run as a script
-    main()
+    sys.exit(main())
