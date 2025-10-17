@@ -27,6 +27,7 @@ def test_prepare_info_contains_planet_name():
     info = camera_pose.prepare_info(planet)
     assert "Earth" in info
     assert "Water" in info
+    assert "million kilometers" in info
 
 
 def test_clean_asin_clamps_values():

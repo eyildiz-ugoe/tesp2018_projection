@@ -104,7 +104,7 @@ def prepare_info(planet: Planet) -> str:
     return (
         "----------Celestial Body Info"
         f"\n--Name: {planet.name}"
-        f"\n--Distance from the Earth: {planet.distance_from_earth} kilometers"
+        f"\n--Distance from the Earth: {planet.distance_from_earth} million kilometers"
         f"\n--Size: {planet.size} x of Earth"
         f"\n--Gravity: {planet.gravity} x of Earth"
         f"\n--Number of Moons: {planet.number_of_moons}"
@@ -324,14 +324,14 @@ def transparent_overlay(
 
     rows, cols, _ = background_image.shape
     height, width = overlay_image.shape[:2]
-    y, x = position
+    x, y = position
 
-    if x >= rows or y >= cols:
+    if y >= rows or x >= cols:
         return background_image
 
-    overlay_slice = overlay_image[: max(0, rows - x), : max(0, cols - y)]
+    overlay_slice = overlay_image[: max(0, rows - y), : max(0, cols - x)]
     height, width = overlay_slice.shape[:2]
-    roi = background_image[x : x + height, y : y + width]
+    roi = background_image[y : y + height, x : x + width]
 
     if overlay_slice.shape[2] == 3:
         alpha_mask = np.ones((height, width, 1), dtype=np.float32)
@@ -649,7 +649,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 info_text = prepare_info(matching_planet)
                 img_pil = Image.fromarray(processed_image)
                 draw = ImageDraw.Draw(img_pil)
-                draw.text(tuple(map(int, settings.info_location)), info_text, font=font, fill=(0, 255, 255, 0))
+                draw.text(tuple(map(int, settings.info_location)), info_text, font=font, fill=(0, 255, 255))
                 processed_image = np.array(img_pil)
                 break
 
